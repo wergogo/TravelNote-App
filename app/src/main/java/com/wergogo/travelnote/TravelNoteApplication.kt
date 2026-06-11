@@ -1,8 +1,14 @@
 package com.wergogo.travelnote
 
 import android.app.Application
+import com.wergogo.travelnote.data.AppContainer
 
 class TravelNoteApplication : Application() {
-    // AppContainer will be initialized here in Task 13
-    // after Firebase repositories are implemented
+    lateinit var container: AppContainer
+        private set
+
+    override fun onCreate() {
+        super.onCreate()
+        container = AppContainer()
+    }
 }

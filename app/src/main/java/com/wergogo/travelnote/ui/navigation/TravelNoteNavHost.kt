@@ -12,6 +12,7 @@ import com.wergogo.travelnote.TravelNoteApplication
 import com.wergogo.travelnote.data.AppContainer
 import androidx.compose.ui.platform.LocalContext
 import com.wergogo.travelnote.ui.login.LoginScreen
+import com.wergogo.travelnote.ui.register.RegisterScreen
 import com.wergogo.travelnote.ui.splash.SplashScreen
 
 @Composable
@@ -47,8 +48,16 @@ fun TravelNoteNavHost(
             )
         }
         composable(Screen.Register.route) {
-            // RegisterScreen — implemented in Task 23
-            androidx.compose.material3.Text("Register")
+            RegisterScreen(
+                onRegisterSuccess = {
+                    navController.navigate(Screen.Home.route) {
+                        popUpTo(Screen.Login.route) { inclusive = true }
+                    }
+                },
+                onNavigateToLogin = {
+                    navController.popBackStack()
+                }
+            )
         }
         composable(Screen.Home.route) {
             // HomeScreen — implemented in Task 25

@@ -16,6 +16,7 @@ import com.wergogo.travelnote.ui.register.RegisterScreen
 import com.wergogo.travelnote.ui.profile.ProfileScreen
 import com.wergogo.travelnote.ui.splash.SplashScreen
 import com.wergogo.travelnote.ui.home.HomeScreen
+import com.wergogo.travelnote.ui.createtrip.CreateTripScreen
 
 @Composable
 fun TravelNoteNavHost(
@@ -81,8 +82,14 @@ fun TravelNoteNavHost(
             )
         }
         composable(Screen.CreateTrip.route) {
-            // CreateTripScreen — implemented in Task 26
-            androidx.compose.material3.Text("CreateTrip")
+            CreateTripScreen(
+                onTripCreated = { tripId ->
+                    navController.navigate(Screen.TripOverview.route(tripId)) {
+                        popUpTo(Screen.CreateTrip.route) { inclusive = true }
+                    }
+                },
+                onBack = { navController.popBackStack() }
+            )
         }
         composable(Screen.JoinTrip.route) {
             // JoinTripScreen — implemented in Task 27

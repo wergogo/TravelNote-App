@@ -13,6 +13,7 @@ import com.wergogo.travelnote.data.AppContainer
 import androidx.compose.ui.platform.LocalContext
 import com.wergogo.travelnote.ui.login.LoginScreen
 import com.wergogo.travelnote.ui.register.RegisterScreen
+import com.wergogo.travelnote.ui.profile.ProfileScreen
 import com.wergogo.travelnote.ui.splash.SplashScreen
 
 @Composable
@@ -64,8 +65,13 @@ fun TravelNoteNavHost(
             androidx.compose.material3.Text("Home")
         }
         composable(Screen.Profile.route) {
-            // ProfileScreen — implemented in Task 24
-            androidx.compose.material3.Text("Profile")
+            ProfileScreen(
+                onLogout = {
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
+            )
         }
         composable(Screen.CreateTrip.route) {
             // CreateTripScreen — implemented in Task 26

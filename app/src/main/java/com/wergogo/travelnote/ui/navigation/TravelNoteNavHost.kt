@@ -11,6 +11,7 @@ import androidx.navigation.navArgument
 import com.wergogo.travelnote.TravelNoteApplication
 import com.wergogo.travelnote.data.AppContainer
 import androidx.compose.ui.platform.LocalContext
+import com.wergogo.travelnote.ui.splash.SplashScreen
 
 @Composable
 fun TravelNoteNavHost(
@@ -26,8 +27,11 @@ fun TravelNoteNavHost(
         modifier = modifier
     ) {
         composable(Screen.Splash.route) {
-            // SplashScreen — implemented in Task 21
-            androidx.compose.material3.Text("Splash")
+            SplashScreen { dest ->
+                navController.navigate(dest.route) {
+                    popUpTo(Screen.Splash.route) { inclusive = true }
+                }
+            }
         }
         composable(Screen.Login.route) {
             // LoginScreen — implemented in Task 22

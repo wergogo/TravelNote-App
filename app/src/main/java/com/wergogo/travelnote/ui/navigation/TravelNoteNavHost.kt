@@ -17,6 +17,7 @@ import com.wergogo.travelnote.ui.profile.ProfileScreen
 import com.wergogo.travelnote.ui.splash.SplashScreen
 import com.wergogo.travelnote.ui.home.HomeScreen
 import com.wergogo.travelnote.ui.createtrip.CreateTripScreen
+import com.wergogo.travelnote.ui.jointrip.JoinTripScreen
 
 @Composable
 fun TravelNoteNavHost(
@@ -92,8 +93,14 @@ fun TravelNoteNavHost(
             )
         }
         composable(Screen.JoinTrip.route) {
-            // JoinTripScreen — implemented in Task 27
-            androidx.compose.material3.Text("JoinTrip")
+            JoinTripScreen(
+                onJoinSuccess = { tripId ->
+                    navController.navigate(Screen.TripOverview.route(tripId)) {
+                        popUpTo(Screen.JoinTrip.route) { inclusive = true }
+                    }
+                },
+                onBack = { navController.popBackStack() }
+            )
         }
         composable(
             route = Screen.TripOverview.route,

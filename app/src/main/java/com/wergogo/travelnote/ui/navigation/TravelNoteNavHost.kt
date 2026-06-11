@@ -23,6 +23,7 @@ import com.wergogo.travelnote.ui.edittrip.EditTripScreen
 import com.wergogo.travelnote.ui.members.MembersScreen
 import com.wergogo.travelnote.ui.daydetail.DayDetailScreen
 import com.wergogo.travelnote.ui.addevent.AddEventScreen
+import com.wergogo.travelnote.ui.addexpense.AddExpenseSheet
 
 @Composable
 fun TravelNoteNavHost(
@@ -188,6 +189,22 @@ fun TravelNoteNavHost(
                         popUpTo(Screen.Home.route) { inclusive = true }
                     }
                 }
+            )
+        }
+        composable(
+            route = "expense/{tripId}/{dateKey}",
+            arguments = listOf(
+                navArgument("tripId") { type = NavType.StringType },
+                navArgument("dateKey") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val tripId = backStackEntry.arguments?.getString("tripId") ?: return@composable
+            val dateKey = backStackEntry.arguments?.getString("dateKey") ?: return@composable
+            AddExpenseSheet(
+                tripId = tripId,
+                dateKey = dateKey,
+                onSaved = { navController.popBackStack() },
+                onBack = { navController.popBackStack() }
             )
         }
     }

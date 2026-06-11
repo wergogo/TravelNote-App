@@ -18,6 +18,7 @@ import com.wergogo.travelnote.ui.splash.SplashScreen
 import com.wergogo.travelnote.ui.home.HomeScreen
 import com.wergogo.travelnote.ui.createtrip.CreateTripScreen
 import com.wergogo.travelnote.ui.jointrip.JoinTripScreen
+import com.wergogo.travelnote.ui.tripoverview.TripOverviewScreen
 
 @Composable
 fun TravelNoteNavHost(
@@ -107,8 +108,15 @@ fun TravelNoteNavHost(
             arguments = listOf(navArgument("tripId") { type = NavType.StringType })
         ) { backStackEntry ->
             val tripId = backStackEntry.arguments?.getString("tripId") ?: return@composable
-            // TripOverviewScreen — implemented in Task 28
-            androidx.compose.material3.Text("TripOverview: $tripId")
+            TripOverviewScreen(
+                tripId = tripId,
+                onDayClick = { dateKey ->
+                    navController.navigate(Screen.DayDetail.route(tripId, dateKey))
+                },
+                onEditTrip = { navController.navigate(Screen.EditTrip.route(tripId)) },
+                onMembersClick = { navController.navigate(Screen.Members.route(tripId)) },
+                onBack = { navController.popBackStack() }
+            )
         }
         composable(
             route = Screen.EditTrip.route,

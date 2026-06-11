@@ -21,6 +21,7 @@ import com.wergogo.travelnote.ui.jointrip.JoinTripScreen
 import com.wergogo.travelnote.ui.tripoverview.TripOverviewScreen
 import com.wergogo.travelnote.ui.edittrip.EditTripScreen
 import com.wergogo.travelnote.ui.members.MembersScreen
+import com.wergogo.travelnote.ui.daydetail.DayDetailScreen
 
 @Composable
 fun TravelNoteNavHost(
@@ -140,8 +141,15 @@ fun TravelNoteNavHost(
         ) { backStackEntry ->
             val tripId = backStackEntry.arguments?.getString("tripId") ?: return@composable
             val dateKey = backStackEntry.arguments?.getString("dateKey") ?: return@composable
-            // DayDetailScreen — implemented in Task 32
-            androidx.compose.material3.Text("DayDetail: $tripId / $dateKey")
+            DayDetailScreen(
+                tripId = tripId,
+                dateKey = dateKey,
+                onAddEvent = { navController.navigate(Screen.AddEvent.route(tripId, dateKey)) },
+                onEditEvent = { eventId -> navController.navigate(Screen.AddEvent.route(tripId, dateKey, eventId)) },
+                onAddExpense = { navController.navigate("expense/$tripId/$dateKey") },
+                onAddNote = { navController.navigate("note/$tripId/$dateKey") },
+                onBack = { navController.popBackStack() }
+            )
         }
         composable(
             route = Screen.AddEvent.route,

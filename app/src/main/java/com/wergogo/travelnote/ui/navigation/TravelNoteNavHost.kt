@@ -24,6 +24,7 @@ import com.wergogo.travelnote.ui.members.MembersScreen
 import com.wergogo.travelnote.ui.daydetail.DayDetailScreen
 import com.wergogo.travelnote.ui.addevent.AddEventScreen
 import com.wergogo.travelnote.ui.addexpense.AddExpenseSheet
+import com.wergogo.travelnote.ui.addnote.AddNoteSheet
 
 @Composable
 fun TravelNoteNavHost(
@@ -201,6 +202,22 @@ fun TravelNoteNavHost(
             val tripId = backStackEntry.arguments?.getString("tripId") ?: return@composable
             val dateKey = backStackEntry.arguments?.getString("dateKey") ?: return@composable
             AddExpenseSheet(
+                tripId = tripId,
+                dateKey = dateKey,
+                onSaved = { navController.popBackStack() },
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable(
+            route = "note/{tripId}/{dateKey}",
+            arguments = listOf(
+                navArgument("tripId") { type = NavType.StringType },
+                navArgument("dateKey") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val tripId = backStackEntry.arguments?.getString("tripId") ?: return@composable
+            val dateKey = backStackEntry.arguments?.getString("dateKey") ?: return@composable
+            AddNoteSheet(
                 tripId = tripId,
                 dateKey = dateKey,
                 onSaved = { navController.popBackStack() },

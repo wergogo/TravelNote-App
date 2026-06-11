@@ -30,7 +30,7 @@ fun HomeScreen(
 ) {
     val app = LocalContext.current.applicationContext as TravelNoteApplication
     val vm: HomeViewModel = viewModel {
-        HomeViewModel(app.container.authRepository, app.container.tripRepository)
+        HomeViewModel(app.container.tripRepository)
     }
     val trips by vm.trips.collectAsState()
     val isLoading by vm.isLoading.collectAsState()
@@ -87,7 +87,7 @@ fun HomeScreen(
                         items(trips) { trip ->
                             TripCard(
                                 trip = trip,
-                                onClick = { onTripClick(trip.tripId) }
+                                onClick = { onTripClick(trip.id) }
                             )
                         }
                     }

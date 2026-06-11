@@ -59,7 +59,7 @@ fun CreateTripScreen(
 ) {
     val app = LocalContext.current.applicationContext as TravelNoteApplication
     val vm: CreateTripViewModel = viewModel {
-        CreateTripViewModel(app.container.authRepository, app.container.tripRepository)
+        CreateTripViewModel(app.container.tripRepository)
     }
     val coroutineScope = rememberCoroutineScope()
     var showCoverPicker by remember { mutableStateOf(false) }

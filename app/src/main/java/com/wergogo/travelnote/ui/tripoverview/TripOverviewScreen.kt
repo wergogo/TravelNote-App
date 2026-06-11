@@ -53,7 +53,7 @@ fun TripOverviewScreen(
     }
     val trip by vm.trip.collectAsState()
     val members by vm.members.collectAsState()
-    val currentUid by vm.currentUid.collectAsState()
+    val currentUid = vm.currentUserId
     val coroutineScope = rememberCoroutineScope()
 
     Scaffold(

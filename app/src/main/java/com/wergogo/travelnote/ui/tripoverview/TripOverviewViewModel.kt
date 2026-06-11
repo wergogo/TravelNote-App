@@ -9,7 +9,6 @@ import com.wergogo.travelnote.data.repository.TripRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class TripOverviewViewModel(
@@ -24,32 +23,19 @@ class TripOverviewViewModel(
     private val _members = MutableStateFlow<List<Member>>(emptyList())
     val members: StateFlow<List<Member>> = _members.asStateFlow()
 
-    private val _currentUid = MutableStateFlow<String?>(null)
-    val currentUid: StateFlow<String?> = _currentUid.asStateFlow()
+    val currentUserId: String?
+        get() = authRepo.currentUserId
 
     init {
         viewModelScope.launch {
-            authRepo.authState().collect { uid ->
-                _currentUid.value = uid
-            }
+            tripRepo.observeTrip(tripId).collect { _trip.value = it }
         }
         viewModelScope.launch {
-            authRepo.authState().first()?.let { uid ->
-                tripRepo.observeMyTrips(uid).collect { trips ->
-                    val found = trips.find { it.tripId == tripId }
-                    _trip.value = found
-                }
-            }
+            tripRepo.observeMembers(tripId).collect { _members.value = it }
         }
     }
 
-    suspend fun deleteTrip(): Result<Unit> {
-        val uid = _currentUid.value ?: return Result.failure(Exception("Not logged in"))
-        return tripRepo.deleteTrip(uid, tripId)
-    }
+    suspend fun deleteTrip(): Result<Unit> = tripRepo.deleteTrip(tripId)
 
-    suspend fun leaveTrip(): Result<Unit> {
-        val uid = _currentUid.value ?: return Result.failure(Exception("Not logged in"))
-        return tripRepo.leaveTrip(uid, tripId)
-    }
+    suspend fun leaveTrip(): Result<Unit> = tripRepo.leaveTrip(tripId)
 }

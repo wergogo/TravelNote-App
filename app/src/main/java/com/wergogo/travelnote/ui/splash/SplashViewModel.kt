@@ -17,8 +17,9 @@ class SplashViewModel(private val authRepo: AuthRepository) : ViewModel() {
 
     init {
         viewModelScope.launch {
-            val uid = authRepo.authState().first()
-            _destination.value = if (uid != null) Screen.Home else Screen.Login
+            // authState() emits Boolean: true = logged in, false = logged out
+            val isLoggedIn = authRepo.authState().first()
+            _destination.value = if (isLoggedIn) Screen.Home else Screen.Login
         }
     }
 }

@@ -3,7 +3,6 @@ package com.wergogo.travelnote.ui.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.wergogo.travelnote.data.model.Trip
-import com.wergogo.travelnote.data.repository.AuthRepository
 import com.wergogo.travelnote.data.repository.TripRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -11,7 +10,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class HomeViewModel(
-    private val authRepo: AuthRepository,
     private val tripRepo: TripRepository
 ) : ViewModel() {
 
@@ -22,16 +20,9 @@ class HomeViewModel(
 
     init {
         viewModelScope.launch {
-            authRepo.authState().collect { uid ->
-                if (uid != null) {
-                    tripRepo.observeMyTrips(uid).collect { list ->
-                        _trips.value = list
-                        isLoading.value = false
-                    }
-                } else {
-                    _trips.value = emptyList()
-                    isLoading.value = false
-                }
+            tripRepo.observeMyTrips().collect { list ->
+                _trips.value = list
+                isLoading.value = false
             }
         }
     }

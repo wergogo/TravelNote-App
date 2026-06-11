@@ -25,13 +25,11 @@ class ProfileViewModel(
     var isLoading by mutableStateOf(false)
     var errorMessage by mutableStateOf<String?>(null)
 
-    private var currentUid: String? = null
-
     init {
         viewModelScope.launch {
-            authRepo.authState().collect { uid ->
-                currentUid = uid
-                if (uid != null) {
+            authRepo.authState().collect { isLoggedIn ->
+                if (isLoggedIn) {
+                    val uid = authRepo.currentUserId ?: return@collect
                     profileRepo.observeProfile(uid).collect { profile ->
                         _profile.value = profile
                         editNickname = profile?.nickname ?: ""
@@ -44,10 +42,9 @@ class ProfileViewModel(
     }
 
     suspend fun saveNickname(): Boolean {
-        val uid = currentUid ?: return false
         isLoading = true
         errorMessage = null
-        val result = profileRepo.updateNickname(uid, editNickname.trim())
+        val result = profileRepo.updateNickname(editNickname.trim())
         isLoading = false
         if (result.isFailure) {
             errorMessage = result.exceptionOrNull()?.message ?: "Failed to save"
@@ -57,8 +54,7 @@ class ProfileViewModel(
     }
 
     suspend fun changeAvatar(avatarId: String): Boolean {
-        val uid = currentUid ?: return false
-        val result = profileRepo.updateAvatar(uid, avatarId)
+        val result = profileRepo.updateAvatar(avatarId)
         if (result.isFailure) {
             errorMessage = result.exceptionOrNull()?.message ?: "Failed to update avatar"
             return false
@@ -66,5 +62,5 @@ class ProfileViewModel(
         return true
     }
 
-    suspend fun logout(): Result<Unit> = authRepo.logout()
+    suspend fun logout() = authRepo.logout()
 }

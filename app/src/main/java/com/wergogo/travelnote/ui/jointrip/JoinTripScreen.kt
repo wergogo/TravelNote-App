@@ -32,7 +32,7 @@ fun JoinTripScreen(
 ) {
     val app = LocalContext.current.applicationContext as TravelNoteApplication
     val vm: JoinTripViewModel = viewModel {
-        JoinTripViewModel(app.container.authRepository, app.container.tripRepository)
+        JoinTripViewModel(app.container.tripRepository)
     }
     val coroutineScope = rememberCoroutineScope()
 

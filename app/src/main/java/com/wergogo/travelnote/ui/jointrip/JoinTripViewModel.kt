@@ -4,12 +4,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
-import com.wergogo.travelnote.data.repository.AuthRepository
 import com.wergogo.travelnote.data.repository.TripRepository
-import kotlinx.coroutines.flow.first
 
 class JoinTripViewModel(
-    private val authRepo: AuthRepository,
     private val tripRepo: TripRepository
 ) : ViewModel() {
     var joinCode by mutableStateOf("")
@@ -24,10 +21,9 @@ class JoinTripViewModel(
     // returns tripId on success, null on failure
     suspend fun joinTrip(): String? {
         if (joinCode.length != 6) { errorMessage = "Enter a 6-character code"; return null }
-        val uid = authRepo.authState().first() ?: run { errorMessage = "Not logged in"; return null }
         isLoading = true
         errorMessage = null
-        val result = tripRepo.joinTrip(uid, joinCode)
+        val result = tripRepo.joinTrip(joinCode)
         isLoading = false
         return if (result.isSuccess) {
             result.getOrNull()

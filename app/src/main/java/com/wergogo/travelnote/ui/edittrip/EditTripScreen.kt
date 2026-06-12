@@ -1,29 +1,8 @@
 package com.wergogo.travelnote.ui.edittrip
 
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
@@ -33,22 +12,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.wergogo.travelnote.TravelNoteApplication
 import com.wergogo.travelnote.data.model.TripVisibility
-import com.wergogo.travelnote.ui.components.AppTopBar
 import com.wergogo.travelnote.ui.components.CoverPicker
-import com.wergogo.travelnote.ui.components.PrimaryButton
-import com.wergogo.travelnote.util.DefaultImages
+import com.wergogo.travelnote.ui.createtrip.TripFormContent
+import com.wergogo.travelnote.ui.theme.TravelnoteTheme
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -66,144 +37,34 @@ fun EditTripScreen(
     var showCoverPicker by remember { mutableStateOf(false) }
     var showDatePicker by remember { mutableStateOf<String?>(null) }  // "start" or "end"
 
-    Scaffold(
-        topBar = { AppTopBar("Edit Trip", onBack = onBack) }
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .padding(innerPadding)
-                .padding(16.dp)
-                .fillMaxWidth()
-                .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            // 1. Cover image preview + change button
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .height(140.dp)
-                    .clip(MaterialTheme.shapes.medium)
-            ) {
-                Image(
-                    painter = painterResource(DefaultImages.cover(vm.coverId)),
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
-                TextButton(
-                    onClick = { showCoverPicker = true },
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(8.dp)
-                ) { Text("Change Cover", color = Color.White) }
+    TripFormContent(
+        title = "Edit Trip",
+        coverId = vm.coverId,
+        name = vm.name,
+        onNameChange = { vm.name = it },
+        destination = vm.destination,
+        onDestinationChange = { vm.destination = it },
+        startDate = vm.startDate,
+        onStartDateClick = { showDatePicker = "start" },
+        endDate = vm.endDate,
+        onEndDateClick = { showDatePicker = "end" },
+        totalBudget = vm.totalBudget,
+        onTotalBudgetChange = { vm.totalBudget = it },
+        currency = vm.currency,
+        onCurrencyChange = { vm.currency = it },
+        visibility = vm.visibility,
+        onVisibilityChange = { vm.visibility = it },
+        errorMessage = vm.errorMessage,
+        isLoading = vm.isLoading,
+        buttonText = "Save Changes",
+        onSubmit = {
+            coroutineScope.launch {
+                if (vm.saveChanges()) onSaved()
             }
-
-            // 2. Trip name
-            OutlinedTextField(
-                value = vm.name,
-                onValueChange = { vm.name = it },
-                label = { Text("Trip Name") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            // 3. Destination
-            OutlinedTextField(
-                value = vm.destination,
-                onValueChange = { vm.destination = it },
-                label = { Text("Destination") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            // 4. Date row
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(
-                    value = vm.startDate,
-                    onValueChange = {},
-                    label = { Text("Start") },
-                    readOnly = true,
-                    trailingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.CalendarMonth,
-                            contentDescription = "Pick start date"
-                        )
-                    },
-                    modifier = Modifier
-                        .weight(1f)
-                        .clickable { showDatePicker = "start" }
-                )
-                OutlinedTextField(
-                    value = vm.endDate,
-                    onValueChange = {},
-                    label = { Text("End") },
-                    readOnly = true,
-                    trailingIcon = {
-                        Icon(
-                            imageVector = Icons.Default.CalendarMonth,
-                            contentDescription = "Pick end date"
-                        )
-                    },
-                    modifier = Modifier
-                        .weight(1f)
-                        .clickable { showDatePicker = "end" }
-                )
-            }
-
-            // 5. Budget row
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(
-                    value = vm.totalBudget,
-                    onValueChange = { vm.totalBudget = it },
-                    label = { Text("Budget") },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    modifier = Modifier.weight(1f)
-                )
-                OutlinedTextField(
-                    value = vm.currency,
-                    onValueChange = { vm.currency = it },
-                    label = { Text("Currency") },
-                    singleLine = true,
-                    modifier = Modifier.width(88.dp)
-                )
-            }
-
-            // 6. Visibility toggle
-            Text("Visibility", style = MaterialTheme.typography.labelLarge)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilterChip(
-                    selected = vm.visibility == TripVisibility.OPEN,
-                    onClick = { vm.visibility = TripVisibility.OPEN },
-                    label = { Text("Open") }
-                )
-                FilterChip(
-                    selected = vm.visibility == TripVisibility.LOCKED,
-                    onClick = { vm.visibility = TripVisibility.LOCKED },
-                    label = { Text("Locked") }
-                )
-            }
-
-            // 7. Error message
-            if (vm.errorMessage != null) {
-                Text(
-                    text = vm.errorMessage!!,
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
-
-            // 8. Save button
-            PrimaryButton(
-                text = "Save Changes",
-                enabled = !vm.isLoading,
-                onClick = {
-                    coroutineScope.launch {
-                        if (vm.saveChanges()) onSaved()
-                    }
-                }
-            )
-        }
-    }
+        },
+        onCoverClick = { showCoverPicker = true },
+        onBack = onBack
+    )
 
     // Date picker dialog
     if (showDatePicker != null) {
@@ -235,9 +96,40 @@ fun EditTripScreen(
     // Cover picker
     if (showCoverPicker) {
         CoverPicker(
-            selectedKey = vm.coverId,
+            selected = vm.coverId,
             onSelect = { vm.coverId = it; showCoverPicker = false },
             onDismiss = { showCoverPicker = false }
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun EditTripScreenPreview() {
+    TravelnoteTheme {
+        TripFormContent(
+            title = "Edit Trip",
+            coverId = "cover_city",
+            name = "Summer in Paris",
+            onNameChange = {},
+            destination = "Paris, France",
+            onDestinationChange = {},
+            startDate = "2026-07-01",
+            onStartDateClick = {},
+            endDate = "2026-07-10",
+            onEndDateClick = {},
+            totalBudget = "3000",
+            onTotalBudgetChange = {},
+            currency = "EUR",
+            onCurrencyChange = {},
+            visibility = TripVisibility.OPEN,
+            onVisibilityChange = {},
+            errorMessage = null,
+            isLoading = false,
+            buttonText = "Save Changes",
+            onSubmit = {},
+            onCoverClick = {},
+            onBack = {}
         )
     }
 }

@@ -3,6 +3,7 @@ package com.wergogo.travelnote.data.source.firebase
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.SetOptions
 import com.wergogo.travelnote.data.model.Day
 import com.wergogo.travelnote.data.model.Event
 import com.wergogo.travelnote.data.model.EventDraft
@@ -28,7 +29,7 @@ class FirebaseDayRepository(
     override fun observeDay(tripId: String, dateKey: String): Flow<Day> = callbackFlow {
         val ref = dayRef(tripId, dateKey)
         val reg = ref.addSnapshotListener { snap, err ->
-            if (err != null) { close(err); return@addSnapshotListener }
+            if (err != null) { close(); return@addSnapshotListener }
             val day = if (snap != null && snap.exists()) {
                 Day(
                     date = dateKey,
@@ -47,7 +48,7 @@ class FirebaseDayRepository(
         val reg = dayRef(tripId, dateKey).collection("events")
             .orderBy("createdAt")
             .addSnapshotListener { snap, err ->
-                if (err != null) { close(err); return@addSnapshotListener }
+                if (err != null) { close(); return@addSnapshotListener }
                 trySend(snap?.documents?.mapNotNull { it.toEvent() } ?: emptyList())
             }
         awaitClose { reg.remove() }
@@ -57,7 +58,7 @@ class FirebaseDayRepository(
         val reg = dayRef(tripId, dateKey).collection("expenses")
             .orderBy("createdAt")
             .addSnapshotListener { snap, err ->
-                if (err != null) { close(err); return@addSnapshotListener }
+                if (err != null) { close(); return@addSnapshotListener }
                 trySend(snap?.documents?.mapNotNull { it.toExpense() } ?: emptyList())
             }
         awaitClose { reg.remove() }
@@ -67,7 +68,7 @@ class FirebaseDayRepository(
         val reg = dayRef(tripId, dateKey).collection("notes")
             .orderBy("createdAt")
             .addSnapshotListener { snap, err ->
-                if (err != null) { close(err); return@addSnapshotListener }
+                if (err != null) { close(); return@addSnapshotListener }
                 trySend(snap?.documents?.mapNotNull { it.toNote() } ?: emptyList())
             }
         awaitClose { reg.remove() }
@@ -112,7 +113,7 @@ class FirebaseDayRepository(
         if (draft.eventId == null) {
             data["createdAt"] = FieldValue.serverTimestamp()
         }
-        ref.set(data).await()
+        ref.set(data, SetOptions.merge()).await()
         Result.success(Unit)
     } catch (e: Exception) { Result.failure(e) }
 
@@ -127,6 +128,11 @@ class FirebaseDayRepository(
         tripId: String, dateKey: String, draft: ExpenseDraft
     ): Result<Unit> = try {
         val author = currentAuthor()
+        val ref = if (draft.expenseId != null) {
+            dayRef(tripId, dateKey).collection("expenses").document(draft.expenseId)
+        } else {
+            dayRef(tripId, dateKey).collection("expenses").document()
+        }
         val data = mutableMapOf<String, Any?>(
             "category" to draft.category.name.lowercase(),
             "amount" to draft.amount,
@@ -134,12 +140,14 @@ class FirebaseDayRepository(
             "placeLabel" to draft.placeLabel,
             "authorId" to author.first,
             "authorNickname" to author.second,
-            "authorAvatarId" to author.third,
-            "createdAt" to FieldValue.serverTimestamp()
+            "authorAvatarId" to author.third
         )
         if (draft.lat != null) data["lat"] = draft.lat
         if (draft.lng != null) data["lng"] = draft.lng
-        dayRef(tripId, dateKey).collection("expenses").add(data).await()
+        if (draft.expenseId == null) {
+            data["createdAt"] = FieldValue.serverTimestamp()
+        }
+        ref.set(data, SetOptions.merge()).await()
         Result.success(Unit)
     } catch (e: Exception) { Result.failure(e) }
 
@@ -217,6 +225,7 @@ class FirebaseDayRepository(
             "food" -> ExpenseCategory.FOOD
             "transport" -> ExpenseCategory.TRANSPORT
             "shopping" -> ExpenseCategory.SHOPPING
+            "accommodation" -> ExpenseCategory.ACCOMMODATION
             else -> ExpenseCategory.OTHER
         }
         Expense(
@@ -234,14 +243,16 @@ class FirebaseDayRepository(
         )
     } catch (e: Exception) { null }
 
-    private fun com.google.firebase.firestore.DocumentSnapshot.toNote(): Note? = try {
-        Note(
-            id = id,
-            text = getString("text") ?: return null,
-            authorId = getString("authorId") ?: "",
-            authorNickname = getString("authorNickname") ?: "",
-            authorAvatarId = getString("authorAvatarId") ?: "avatar_01",
-            createdAt = getTimestamp("createdAt")?.toDate()?.time ?: 0L
-        )
-    } catch (e: Exception) { null }
+    private fun com.google.firebase.firestore.DocumentSnapshot.toNote(): Note? {
+        return try {
+            Note(
+                id = id,
+                text = getString("text") ?: return null,
+                authorId = getString("authorId") ?: "",
+                authorNickname = getString("authorNickname") ?: "",
+                authorAvatarId = getString("authorAvatarId") ?: "avatar_01",
+                createdAt = getTimestamp("createdAt")?.toDate()?.time ?: 0L
+            )
+        } catch (e: Exception) { null }
+    }
 }

@@ -3,6 +3,7 @@ package com.wergogo.travelnote.ui.tripoverview
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -30,13 +31,18 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.wergogo.travelnote.TravelNoteApplication
+import com.wergogo.travelnote.data.model.Member
+import com.wergogo.travelnote.data.model.Trip
+import com.wergogo.travelnote.data.model.TripVisibility
 import com.wergogo.travelnote.ui.components.AppTopBar
 import com.wergogo.travelnote.ui.components.BudgetBar
 import com.wergogo.travelnote.ui.components.EmptyState
 import com.wergogo.travelnote.ui.components.MemberAvatarRow
+import com.wergogo.travelnote.ui.theme.TravelnoteTheme
 import com.wergogo.travelnote.util.DefaultImages
 
 @Composable
@@ -49,20 +55,44 @@ fun TripOverviewScreen(
 ) {
     val app = LocalContext.current.applicationContext as TravelNoteApplication
     val vm: TripOverviewViewModel = viewModel(key = tripId) {
-        TripOverviewViewModel(app.container.authRepository, app.container.tripRepository, tripId)
+        TripOverviewViewModel(app.container.authRepository, app.container.tripRepository, app.container.dayRepository, tripId)
     }
     val trip by vm.trip.collectAsState()
     val members by vm.members.collectAsState()
+    val spent by vm.spent.collectAsState()
     val currentUid = vm.currentUserId
     val coroutineScope = rememberCoroutineScope()
 
+    TripOverviewContent(
+        trip = trip,
+        members = members,
+        spent = spent,
+        isOwner = currentUid == trip?.ownerId,
+        onDayClick = onDayClick,
+        onEditTrip = onEditTrip,
+        onMembersClick = onMembersClick,
+        onBack = onBack
+    )
+}
+
+@Composable
+internal fun TripOverviewContent(
+    trip: Trip?,
+    members: List<Member>,
+    spent: Double,
+    isOwner: Boolean,
+    onDayClick: (dateKey: String) -> Unit,
+    onEditTrip: () -> Unit,
+    onMembersClick: () -> Unit,
+    onBack: () -> Unit
+) {
     Scaffold(
         topBar = {
             AppTopBar(
                 title = trip?.name ?: "Trip",
                 onBack = onBack,
                 actions = {
-                    if (currentUid == trip?.ownerId) {
+                    if (isOwner) {
                         IconButton(onClick = onEditTrip) {
                             Icon(Icons.Default.Edit, "Edit trip")
                         }
@@ -83,17 +113,17 @@ fun TripOverviewScreen(
                     .padding(16.dp)
             )
         } else {
-            val dateKeys = generateDateKeys(trip?.startDate ?: "", trip?.endDate ?: "")
+            val dateKeys = generateDateKeys(trip.startDate, trip.endDate)
 
             LazyColumn(
                 modifier = Modifier.padding(innerPadding),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
+                contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 // 1. Cover image
                 item {
                     Image(
-                        painter = painterResource(DefaultImages.cover(trip?.coverId)),
+                        painter = painterResource(DefaultImages.cover(trip.coverId)),
                         contentDescription = null,
                         modifier = Modifier
                             .fillMaxWidth()
@@ -111,25 +141,25 @@ fun TripOverviewScreen(
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Text(
-                                text = trip?.destination ?: "",
+                                text = trip.destination,
                                 style = MaterialTheme.typography.titleMedium
                             )
                             Text(
-                                text = "${trip?.startDate} \u2013 ${trip?.endDate}",
+                                text = "${trip.startDate} \u2013 ${trip.endDate}",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Row {
                                 SuggestionChip(
                                     onClick = {},
-                                    label = { Text("Code: ${trip?.joinCode}") }
+                                    label = { Text("Code: ${trip.joinCode}") }
                                 )
                             }
                             MemberAvatarRow(members = members)
                             BudgetBar(
-                                spent = 0.0,
-                                total = trip?.totalBudget ?: 0.0,
-                                currency = trip?.currency ?: "USD"
+                                spent = spent,
+                                total = trip.totalBudget,
+                                currency = trip.currency
                             )
                         }
                     }
@@ -165,13 +195,71 @@ fun TripOverviewScreen(
     }
 }
 
-private fun generateDateKeys(startDate: String, endDate: String): List<String> {
-    return try {
-        val start = java.time.LocalDate.parse(startDate)
-        val end = java.time.LocalDate.parse(endDate)
-        generateSequence(start) { it.plusDays(1) }
-            .takeWhile { !it.isAfter(end) }
-            .map { it.toString() }  // "yyyy-MM-dd"
-            .toList()
-    } catch (e: Exception) { emptyList() }
+@Preview(showBackground = true)
+@Composable
+private fun TripOverviewScreenPreview() {
+    TravelnoteTheme {
+        TripOverviewContent(
+            trip = Trip(
+                id = "trip1",
+                name = "Summer in Paris",
+                destination = "Paris, France",
+                startDate = "2026-07-01",
+                endDate = "2026-07-04",
+                totalBudget = 3000.0,
+                currency = "EUR",
+                visibility = TripVisibility.OPEN,
+                joinCode = "PAR123",
+                coverId = "cover_city",
+                ownerId = "user1",
+                memberIds = listOf("user1", "user2", "user3"),
+                createdAt = System.currentTimeMillis()
+            ),
+            members = listOf(
+                Member(userId = "user1", nickname = "Alice", avatarId = "avatar_01", role = "owner", joinedAt = System.currentTimeMillis()),
+                Member(userId = "user2", nickname = "Bob", avatarId = "avatar_03", role = "member", joinedAt = System.currentTimeMillis()),
+                Member(userId = "user3", nickname = "Charlie", avatarId = "avatar_05", role = "member", joinedAt = System.currentTimeMillis())
+            ),
+            spent = 1250.0,
+            isOwner = true,
+            onDayClick = {},
+            onEditTrip = {},
+            onMembersClick = {},
+            onBack = {}
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun TripOverviewScreenMemberPreview() {
+    TravelnoteTheme {
+        TripOverviewContent(
+            trip = Trip(
+                id = "trip1",
+                name = "Tokyo Adventure",
+                destination = "Tokyo, Japan",
+                startDate = "2026-08-15",
+                endDate = "2026-08-17",
+                totalBudget = 5000.0,
+                currency = "USD",
+                visibility = TripVisibility.LOCKED,
+                joinCode = "TKY456",
+                coverId = "cover_mountains",
+                ownerId = "other_user",
+                memberIds = listOf("other_user", "user1"),
+                createdAt = System.currentTimeMillis()
+            ),
+            members = listOf(
+                Member(userId = "other_user", nickname = "Host", avatarId = "avatar_02", role = "owner", joinedAt = System.currentTimeMillis()),
+                Member(userId = "user1", nickname = "Me", avatarId = "avatar_04", role = "member", joinedAt = System.currentTimeMillis())
+            ),
+            spent = 4800.0,
+            isOwner = false,
+            onDayClick = {},
+            onEditTrip = {},
+            onMembersClick = {},
+            onBack = {}
+        )
+    }
 }

@@ -15,13 +15,19 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.wergogo.travelnote.TravelNoteApplication
+import com.wergogo.travelnote.data.model.Member
+import com.wergogo.travelnote.data.model.Trip
+import com.wergogo.travelnote.data.model.TripVisibility
 import com.wergogo.travelnote.ui.components.AppTopBar
+import com.wergogo.travelnote.ui.theme.TravelnoteTheme
+import kotlinx.coroutines.launch
 import com.wergogo.travelnote.util.DefaultImages
 
 @Composable
@@ -76,6 +82,29 @@ fun MembersScreen(
         )
     }
 
+    MembersContent(
+        joinCode = trip?.joinCode ?: "",
+        members = members,
+        isOwner = vm.currentUserId == trip?.ownerId,
+        onCopyCode = { clipboardManager.setText(AnnotatedString(trip?.joinCode ?: "")) },
+        onRegenerateCode = { coroutineScope.launch { vm.regenerateJoinCode() } },
+        onDeleteTrip = { showDeleteDialog = true },
+        onLeaveTrip = { showLeaveDialog = true },
+        onBack = onBack
+    )
+}
+
+@Composable
+internal fun MembersContent(
+    joinCode: String,
+    members: List<Member>,
+    isOwner: Boolean,
+    onCopyCode: () -> Unit,
+    onRegenerateCode: () -> Unit,
+    onDeleteTrip: () -> Unit,
+    onLeaveTrip: () -> Unit,
+    onBack: () -> Unit
+) {
     Scaffold(
         topBar = { AppTopBar("Members", onBack = onBack) }
     ) { innerPadding ->
@@ -88,25 +117,21 @@ fun MembersScreen(
             contentPadding = PaddingValues(vertical = 16.dp)
         ) {
             // Join Code section — only visible to trip owner
-            if (vm.currentUserId == trip?.ownerId) {
+            if (isOwner) {
                 item {
                     ElevatedCard(Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(16.dp)) {
                             Text("Join Code", style = MaterialTheme.typography.titleSmall)
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
-                                    text = trip?.joinCode ?: "",
+                                    text = joinCode,
                                     style = MaterialTheme.typography.headlineMedium,
                                     modifier = Modifier.weight(1f)
                                 )
-                                IconButton(onClick = {
-                                    clipboardManager.setText(AnnotatedString(trip?.joinCode ?: ""))
-                                }) {
+                                IconButton(onClick = onCopyCode) {
                                     Icon(Icons.Default.ContentCopy, contentDescription = "Copy")
                                 }
-                                IconButton(onClick = {
-                                    coroutineScope.launch { vm.regenerateJoinCode() }
-                                }) {
+                                IconButton(onClick = onRegenerateCode) {
                                     Icon(Icons.Default.Refresh, contentDescription = "Regenerate")
                                 }
                             }
@@ -158,9 +183,9 @@ fun MembersScreen(
                             .padding(16.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        if (vm.currentUserId == trip?.ownerId) {
+                        if (isOwner) {
                             OutlinedButton(
-                                onClick = { showDeleteDialog = true },
+                                onClick = onDeleteTrip,
                                 modifier = Modifier.fillMaxWidth(),
                                 colors = ButtonDefaults.outlinedButtonColors(
                                     contentColor = MaterialTheme.colorScheme.error
@@ -170,7 +195,7 @@ fun MembersScreen(
                             }
                         } else {
                             OutlinedButton(
-                                onClick = { showLeaveDialog = true },
+                                onClick = onLeaveTrip,
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Text("Leave Trip")
@@ -180,5 +205,47 @@ fun MembersScreen(
                 }
             }
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun MembersScreenOwnerPreview() {
+    TravelnoteTheme {
+        MembersContent(
+            joinCode = "PAR123",
+            members = listOf(
+                Member(userId = "user1", nickname = "Alice", avatarId = "avatar_01", role = "owner", joinedAt = System.currentTimeMillis()),
+                Member(userId = "user2", nickname = "Bob", avatarId = "avatar_03", role = "member", joinedAt = System.currentTimeMillis()),
+                Member(userId = "user3", nickname = "Charlie", avatarId = "avatar_05", role = "member", joinedAt = System.currentTimeMillis()),
+                Member(userId = "user4", nickname = "Diana", avatarId = "avatar_07", role = "member", joinedAt = System.currentTimeMillis())
+            ),
+            isOwner = true,
+            onCopyCode = {},
+            onRegenerateCode = {},
+            onDeleteTrip = {},
+            onLeaveTrip = {},
+            onBack = {}
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun MembersScreenMemberPreview() {
+    TravelnoteTheme {
+        MembersContent(
+            joinCode = "PAR123",
+            members = listOf(
+                Member(userId = "user1", nickname = "Alice", avatarId = "avatar_01", role = "owner", joinedAt = System.currentTimeMillis()),
+                Member(userId = "user2", nickname = "Bob", avatarId = "avatar_03", role = "member", joinedAt = System.currentTimeMillis())
+            ),
+            isOwner = false,
+            onCopyCode = {},
+            onRegenerateCode = {},
+            onDeleteTrip = {},
+            onLeaveTrip = {},
+            onBack = {}
+        )
     }
 }

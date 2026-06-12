@@ -22,6 +22,7 @@ import com.wergogo.travelnote.data.model.ExpenseCategory
 import com.wergogo.travelnote.ui.theme.CategoryFood
 import com.wergogo.travelnote.ui.theme.CategoryOther
 import com.wergogo.travelnote.ui.theme.CategoryShopping
+import com.wergogo.travelnote.ui.theme.CategoryStay
 import com.wergogo.travelnote.ui.theme.CategoryTransport
 import com.wergogo.travelnote.ui.theme.Secondary
 import com.wergogo.travelnote.util.DefaultImages
@@ -74,6 +75,7 @@ fun CategoryChip(
         ExpenseCategory.FOOD -> CategoryFood
         ExpenseCategory.TRANSPORT -> CategoryTransport
         ExpenseCategory.SHOPPING -> CategoryShopping
+        ExpenseCategory.ACCOMMODATION -> CategoryStay
         ExpenseCategory.OTHER -> CategoryOther
     }
     SuggestionChip(

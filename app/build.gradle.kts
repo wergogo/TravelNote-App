@@ -58,6 +58,11 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     debugImplementation(libs.androidx.compose.ui.tooling)
     implementation(platform("com.google.firebase:firebase-bom:34.14.1"))
+    implementation("com.google.firebase:firebase-auth")
+    implementation("com.google.firebase:firebase-firestore")
+
+    // Material Icons (not included transitively with material3)
+    implementation("androidx.compose.material:material-icons-extended")
 
     // Core library desugaring (java.time on API < 26 — not strictly needed at minSdk 28 but ensures full java.time support)
     coreLibraryDesugaring(libs.android.desugar.jdk.libs)
@@ -71,10 +76,6 @@ dependencies {
     // Coroutines
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.kotlinx.coroutines.play.services)
-
-    // Firebase modules (version managed by BOM)
-    implementation(libs.firebase.auth.ktx)
-    implementation(libs.firebase.firestore.ktx)
 
     // Location
     implementation(libs.play.services.location)

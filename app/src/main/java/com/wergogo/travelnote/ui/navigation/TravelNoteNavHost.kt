@@ -84,8 +84,11 @@ fun TravelNoteNavHost(
             ProfileScreen(
                 onLogout = {
                     navController.navigate(Screen.Login.route) {
-                        popUpTo(0) { inclusive = true }
+                        popUpTo(navController.graph.id) { inclusive = true }
                     }
+                },
+                onTripsClick = {
+                    navController.popBackStack(Screen.Home.route, inclusive = false)
                 }
             )
         }
@@ -150,6 +153,7 @@ fun TravelNoteNavHost(
                 onAddEvent = { navController.navigate(Screen.AddEvent.route(tripId, dateKey)) },
                 onEditEvent = { eventId -> navController.navigate(Screen.AddEvent.route(tripId, dateKey, eventId)) },
                 onAddExpense = { navController.navigate("expense/$tripId/$dateKey") },
+                onEditExpense = { expenseId -> navController.navigate("expense/$tripId/$dateKey?expenseId=$expenseId") },
                 onAddNote = { navController.navigate("note/$tripId/$dateKey") },
                 onBack = { navController.popBackStack() }
             )
@@ -193,17 +197,24 @@ fun TravelNoteNavHost(
             )
         }
         composable(
-            route = "expense/{tripId}/{dateKey}",
+            route = "expense/{tripId}/{dateKey}?expenseId={expenseId}",
             arguments = listOf(
                 navArgument("tripId") { type = NavType.StringType },
-                navArgument("dateKey") { type = NavType.StringType }
+                navArgument("dateKey") { type = NavType.StringType },
+                navArgument("expenseId") {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                }
             )
         ) { backStackEntry ->
             val tripId = backStackEntry.arguments?.getString("tripId") ?: return@composable
             val dateKey = backStackEntry.arguments?.getString("dateKey") ?: return@composable
+            val expenseId = backStackEntry.arguments?.getString("expenseId")
             AddExpenseSheet(
                 tripId = tripId,
                 dateKey = dateKey,
+                expenseId = expenseId,
                 onSaved = { navController.popBackStack() },
                 onBack = { navController.popBackStack() }
             )

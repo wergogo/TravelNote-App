@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import com.wergogo.travelnote.data.model.TripDraft
 import com.wergogo.travelnote.data.model.TripVisibility
 import com.wergogo.travelnote.data.repository.TripRepository
+import java.time.LocalDate
 
 class CreateTripViewModel(
     private val tripRepo: TripRepository
@@ -26,6 +27,13 @@ class CreateTripViewModel(
     suspend fun createTrip(): String? {
         if (name.isBlank()) { errorMessage = "Name is required"; return null }
         if (startDate.isBlank() || endDate.isBlank()) { errorMessage = "Dates are required"; return null }
+        try {
+            if (LocalDate.parse(endDate).isBefore(LocalDate.parse(startDate))) {
+                errorMessage = "End date cannot be before start date"; return null
+            }
+        } catch (_: Exception) {
+            errorMessage = "Invalid date format"; return null
+        }
         val budget = totalBudget.toDoubleOrNull() ?: 0.0
         isLoading = true
         errorMessage = null

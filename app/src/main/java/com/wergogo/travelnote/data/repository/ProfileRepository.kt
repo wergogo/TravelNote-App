@@ -7,4 +7,6 @@ interface ProfileRepository {
     fun observeProfile(userId: String): Flow<UserProfile?>
     suspend fun updateNickname(nickname: String): Result<Unit>
     suspend fun updateAvatar(avatarId: String): Result<Unit>
+    /** Update denormalized nickname/avatarId in all member docs, events, expenses, notes. */
+    suspend fun propagateProfileUpdate(): Result<Unit>
 }

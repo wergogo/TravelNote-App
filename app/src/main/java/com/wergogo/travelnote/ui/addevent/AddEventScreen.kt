@@ -9,12 +9,14 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.wergogo.travelnote.TravelNoteApplication
 import com.wergogo.travelnote.data.model.EventType
 import com.wergogo.travelnote.ui.components.AppTopBar
 import com.wergogo.travelnote.ui.components.PrimaryButton
+import com.wergogo.travelnote.ui.theme.TravelnoteTheme
 import kotlinx.coroutines.launch
 
 @Composable
@@ -31,10 +33,63 @@ fun AddEventScreen(
     }
     val coroutineScope = rememberCoroutineScope()
 
+    AddEventContent(
+        isEditMode = vm.isEditMode,
+        eventType = vm.eventType,
+        onEventTypeChange = { vm.eventType = it },
+        time = vm.time,
+        onTimeChange = { vm.time = it },
+        depAirport = vm.depAirport,
+        onDepAirportChange = { vm.depAirport = it.uppercase() },
+        arrAirport = vm.arrAirport,
+        onArrAirportChange = { vm.arrAirport = it.uppercase() },
+        flightNumber = vm.flightNumber,
+        onFlightNumberChange = { vm.flightNumber = it },
+        title = vm.title,
+        onTitleChange = { vm.title = it },
+        locationName = vm.locationName,
+        onLocationNameChange = { vm.locationName = it },
+        cost = vm.cost,
+        onCostChange = { vm.cost = it },
+        errorMessage = vm.errorMessage,
+        isLoading = vm.isLoading,
+        onSave = {
+            coroutineScope.launch {
+                if (vm.save()) onSaved()
+            }
+        },
+        onBack = onBack
+    )
+}
+
+@Composable
+internal fun AddEventContent(
+    isEditMode: Boolean,
+    eventType: EventType,
+    onEventTypeChange: (EventType) -> Unit,
+    time: String,
+    onTimeChange: (String) -> Unit,
+    depAirport: String,
+    onDepAirportChange: (String) -> Unit,
+    arrAirport: String,
+    onArrAirportChange: (String) -> Unit,
+    flightNumber: String,
+    onFlightNumberChange: (String) -> Unit,
+    title: String,
+    onTitleChange: (String) -> Unit,
+    locationName: String,
+    onLocationNameChange: (String) -> Unit,
+    cost: String,
+    onCostChange: (String) -> Unit,
+    errorMessage: String?,
+    isLoading: Boolean,
+    onSave: () -> Unit,
+    onBack: () -> Unit
+) {
     Scaffold(
         topBar = {
             AppTopBar(
-                title = if (vm.isEditMode) "Edit Event" else "New Event",
+                title = if (isEditMode) "Edit Event" else "New Event",
                 onBack = onBack
             )
         }
@@ -50,45 +105,45 @@ fun AddEventScreen(
             Text("Event Type")
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilterChip(
-                    selected = vm.eventType == EventType.FLIGHT,
-                    onClick = { vm.eventType = EventType.FLIGHT },
+                    selected = eventType == EventType.FLIGHT,
+                    onClick = { onEventTypeChange(EventType.FLIGHT) },
                     label = { Text("Flight") }
                 )
                 FilterChip(
-                    selected = vm.eventType == EventType.ACTIVITY,
-                    onClick = { vm.eventType = EventType.ACTIVITY },
+                    selected = eventType == EventType.ACTIVITY,
+                    onClick = { onEventTypeChange(EventType.ACTIVITY) },
                     label = { Text("Activity") }
                 )
             }
 
             // 2. Time field
             OutlinedTextField(
-                value = vm.time,
-                onValueChange = { vm.time = it },
+                value = time,
+                onValueChange = onTimeChange,
                 label = { Text("Time (HH:mm)") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
 
             // 3. Flight-specific fields
-            if (vm.eventType == EventType.FLIGHT) {
+            if (eventType == EventType.FLIGHT) {
                 OutlinedTextField(
-                    value = vm.depAirport,
-                    onValueChange = { vm.depAirport = it.uppercase() },
+                    value = depAirport,
+                    onValueChange = onDepAirportChange,
                     label = { Text("Departure (IATA)") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
-                    value = vm.arrAirport,
-                    onValueChange = { vm.arrAirport = it.uppercase() },
+                    value = arrAirport,
+                    onValueChange = onArrAirportChange,
                     label = { Text("Arrival (IATA)") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
-                    value = vm.flightNumber,
-                    onValueChange = { vm.flightNumber = it },
+                    value = flightNumber,
+                    onValueChange = onFlightNumberChange,
                     label = { Text("Flight Number") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
@@ -96,17 +151,17 @@ fun AddEventScreen(
             }
 
             // 4. Activity-specific fields
-            if (vm.eventType == EventType.ACTIVITY) {
+            if (eventType == EventType.ACTIVITY) {
                 OutlinedTextField(
-                    value = vm.title,
-                    onValueChange = { vm.title = it },
+                    value = title,
+                    onValueChange = onTitleChange,
                     label = { Text("Activity Title") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
                 )
                 OutlinedTextField(
-                    value = vm.locationName,
-                    onValueChange = { vm.locationName = it },
+                    value = locationName,
+                    onValueChange = onLocationNameChange,
                     label = { Text("Location (optional)") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth()
@@ -115,8 +170,8 @@ fun AddEventScreen(
 
             // 5. Cost field
             OutlinedTextField(
-                value = vm.cost,
-                onValueChange = { vm.cost = it },
+                value = cost,
+                onValueChange = onCostChange,
                 label = { Text("Cost") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 singleLine = true,
@@ -124,9 +179,9 @@ fun AddEventScreen(
             )
 
             // 6. Error message
-            if (vm.errorMessage != null) {
+            if (errorMessage != null) {
                 Text(
-                    text = vm.errorMessage!!,
+                    text = errorMessage,
                     color = MaterialTheme.colorScheme.error
                 )
             }
@@ -134,13 +189,99 @@ fun AddEventScreen(
             // 7. Save button
             PrimaryButton(
                 text = "Save Event",
-                enabled = !vm.isLoading,
-                onClick = {
-                    coroutineScope.launch {
-                        if (vm.save()) onSaved()
-                    }
-                }
+                enabled = !isLoading,
+                onClick = onSave
             )
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun AddEventActivityPreview() {
+    TravelnoteTheme {
+        AddEventContent(
+            isEditMode = false,
+            eventType = EventType.ACTIVITY,
+            onEventTypeChange = {},
+            time = "14:30",
+            onTimeChange = {},
+            depAirport = "",
+            onDepAirportChange = {},
+            arrAirport = "",
+            onArrAirportChange = {},
+            flightNumber = "",
+            onFlightNumberChange = {},
+            title = "Visit Eiffel Tower",
+            onTitleChange = {},
+            locationName = "Champ de Mars, Paris",
+            onLocationNameChange = {},
+            cost = "25.00",
+            onCostChange = {},
+            errorMessage = null,
+            isLoading = false,
+            onSave = {},
+            onBack = {}
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun AddEventFlightPreview() {
+    TravelnoteTheme {
+        AddEventContent(
+            isEditMode = false,
+            eventType = EventType.FLIGHT,
+            onEventTypeChange = {},
+            time = "08:00",
+            onTimeChange = {},
+            depAirport = "JFK",
+            onDepAirportChange = {},
+            arrAirport = "CDG",
+            onArrAirportChange = {},
+            flightNumber = "AF007",
+            onFlightNumberChange = {},
+            title = "",
+            onTitleChange = {},
+            locationName = "",
+            onLocationNameChange = {},
+            cost = "450.00",
+            onCostChange = {},
+            errorMessage = null,
+            isLoading = false,
+            onSave = {},
+            onBack = {}
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun EditEventPreview() {
+    TravelnoteTheme {
+        AddEventContent(
+            isEditMode = true,
+            eventType = EventType.ACTIVITY,
+            onEventTypeChange = {},
+            time = "10:00",
+            onTimeChange = {},
+            depAirport = "",
+            onDepAirportChange = {},
+            arrAirport = "",
+            onArrAirportChange = {},
+            flightNumber = "",
+            onFlightNumberChange = {},
+            title = "Louvre Museum",
+            onTitleChange = {},
+            locationName = "Rue de Rivoli, Paris",
+            onLocationNameChange = {},
+            cost = "17.00",
+            onCostChange = {},
+            errorMessage = null,
+            isLoading = false,
+            onSave = {},
+            onBack = {}
+        )
     }
 }

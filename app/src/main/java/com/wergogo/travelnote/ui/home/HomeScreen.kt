@@ -11,15 +11,19 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.wergogo.travelnote.TravelNoteApplication
+import com.wergogo.travelnote.data.model.Trip
+import com.wergogo.travelnote.data.model.TripVisibility
 import com.wergogo.travelnote.ui.components.AppTopBar
 import com.wergogo.travelnote.ui.components.BottomNavTab
 import com.wergogo.travelnote.ui.components.EmptyState
 import com.wergogo.travelnote.ui.components.PrimaryButton
 import com.wergogo.travelnote.ui.components.TravelNoteBottomNav
 import com.wergogo.travelnote.ui.components.TripCard
+import com.wergogo.travelnote.ui.theme.TravelnoteTheme
 
 @Composable
 fun HomeScreen(
@@ -34,6 +38,26 @@ fun HomeScreen(
     }
     val trips by vm.trips.collectAsState()
     val isLoading by vm.isLoading.collectAsState()
+
+    HomeContent(
+        trips = trips,
+        isLoading = isLoading,
+        onTripClick = onTripClick,
+        onCreateTrip = onCreateTrip,
+        onJoinTrip = onJoinTrip,
+        onProfileClick = onProfileClick
+    )
+}
+
+@Composable
+internal fun HomeContent(
+    trips: List<Trip>,
+    isLoading: Boolean,
+    onTripClick: (String) -> Unit,
+    onCreateTrip: () -> Unit,
+    onJoinTrip: () -> Unit,
+    onProfileClick: () -> Unit
+) {
     var selectedTab by remember { mutableStateOf(BottomNavTab.TRIPS) }
 
     Scaffold(
@@ -45,10 +69,11 @@ fun HomeScreen(
             })
         },
         bottomBar = {
-            TravelNoteBottomNav(selectedTab = selectedTab, onTabSelected = { tab ->
-                selectedTab = tab
-                if (tab == BottomNavTab.PROFILE) onProfileClick()
-            })
+            TravelNoteBottomNav(
+                selected = selectedTab,
+                onTripsClick = { selectedTab = BottomNavTab.TRIPS },
+                onProfileClick = { selectedTab = BottomNavTab.PROFILE; onProfileClick() }
+            )
         },
         floatingActionButton = {
             ExtendedFloatingActionButton(
@@ -94,5 +119,66 @@ fun HomeScreen(
                 }
             }
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun HomeScreenWithTripsPreview() {
+    TravelnoteTheme {
+        HomeContent(
+            trips = listOf(
+                Trip(
+                    id = "1",
+                    name = "Summer in Paris",
+                    destination = "Paris, France",
+                    startDate = "2026-07-01",
+                    endDate = "2026-07-10",
+                    totalBudget = 3000.0,
+                    currency = "EUR",
+                    visibility = TripVisibility.OPEN,
+                    joinCode = "ABC123",
+                    coverId = "cover_city",
+                    ownerId = "user1",
+                    memberIds = listOf("user1", "user2"),
+                    createdAt = System.currentTimeMillis()
+                ),
+                Trip(
+                    id = "2",
+                    name = "Tokyo Adventure",
+                    destination = "Tokyo, Japan",
+                    startDate = "2026-08-15",
+                    endDate = "2026-08-25",
+                    totalBudget = 5000.0,
+                    currency = "USD",
+                    visibility = TripVisibility.LOCKED,
+                    joinCode = "XYZ789",
+                    coverId = "cover_mountains",
+                    ownerId = "user1",
+                    memberIds = listOf("user1", "user2", "user3"),
+                    createdAt = System.currentTimeMillis()
+                )
+            ),
+            isLoading = false,
+            onTripClick = {},
+            onCreateTrip = {},
+            onJoinTrip = {},
+            onProfileClick = {}
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun HomeScreenEmptyPreview() {
+    TravelnoteTheme {
+        HomeContent(
+            trips = emptyList(),
+            isLoading = false,
+            onTripClick = {},
+            onCreateTrip = {},
+            onJoinTrip = {},
+            onProfileClick = {}
+        )
     }
 }

@@ -53,6 +53,21 @@ class AddEventViewModel(
 
     suspend fun save(): Boolean {
         if (time.isBlank()) { errorMessage = "Time is required"; return false }
+        if (!time.trim().matches(Regex("""\d{1,2}:\d{2}"""))) {
+            errorMessage = "Time must be in HH:mm format (e.g. 09:30)"
+            return false
+        }
+        val parts = time.trim().split(":")
+        val h = parts[0].toIntOrNull() ?: -1
+        val m = parts[1].toIntOrNull() ?: -1
+        if (h !in 0..23 || m !in 0..59) {
+            errorMessage = "Invalid time — hours 0-23, minutes 0-59"
+            return false
+        }
+        if (cost.isNotBlank() && cost.toDoubleOrNull() == null) {
+            errorMessage = "Cost must be a valid number"
+            return false
+        }
         if (eventType == EventType.FLIGHT && (depAirport.isBlank() || arrAirport.isBlank())) {
             errorMessage = "Airports are required for flights"
             return false

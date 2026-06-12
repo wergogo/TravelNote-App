@@ -12,7 +12,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.wergogo.travelnote.TravelNoteApplication
+import androidx.compose.ui.tooling.preview.Preview
 import com.wergogo.travelnote.ui.navigation.Screen
+import com.wergogo.travelnote.ui.theme.TravelnoteTheme
 
 @Composable
 fun SplashScreen(onNavigate: (Screen) -> Unit) {
@@ -25,10 +27,23 @@ fun SplashScreen(onNavigate: (Screen) -> Unit) {
         destination?.let { onNavigate(it) }
     }
 
+    SplashContent()
+}
+
+@Composable
+internal fun SplashContent() {
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
     ) {
         CircularProgressIndicator()
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun SplashScreenPreview() {
+    TravelnoteTheme {
+        SplashContent()
     }
 }

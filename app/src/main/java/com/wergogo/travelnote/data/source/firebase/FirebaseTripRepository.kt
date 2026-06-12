@@ -27,7 +27,7 @@ class FirebaseTripRepository(
         val reg = firestore.collection("trips")
             .whereArrayContains("memberIds", uid)
             .addSnapshotListener { snap, err ->
-                if (err != null) { close(err); return@addSnapshotListener }
+                if (err != null) { close(); return@addSnapshotListener }
                 trySend(snap?.documents?.mapNotNull { it.toTrip() } ?: emptyList())
             }
         awaitClose { reg.remove() }
@@ -36,7 +36,7 @@ class FirebaseTripRepository(
     override fun observeTrip(tripId: String): Flow<Trip?> = callbackFlow {
         val reg = firestore.collection("trips").document(tripId)
             .addSnapshotListener { snap, err ->
-                if (err != null) { close(err); return@addSnapshotListener }
+                if (err != null) { close(); return@addSnapshotListener }
                 trySend(snap?.takeIf { it.exists() }?.toTrip())
             }
         awaitClose { reg.remove() }
@@ -45,7 +45,7 @@ class FirebaseTripRepository(
     override fun observeMembers(tripId: String): Flow<List<Member>> = callbackFlow {
         val reg = firestore.collection("trips").document(tripId).collection("members")
             .addSnapshotListener { snap, err ->
-                if (err != null) { close(err); return@addSnapshotListener }
+                if (err != null) { close(); return@addSnapshotListener }
                 trySend(snap?.documents?.mapNotNull { it.toMember() } ?: emptyList())
             }
         awaitClose { reg.remove() }
@@ -53,61 +53,63 @@ class FirebaseTripRepository(
 
     // ── Write ─────────────────────────────────────────────────────────────────
 
-    override suspend fun createTrip(draft: TripDraft): Result<Trip> = try {
-        val uid = auth.currentUser?.uid ?: return Result.failure(Exception("Not logged in"))
-        val profile = firestore.collection("users").document(uid).get().await()
-        val nickname = profile.getString("nickname") ?: ""
-        val avatarId = profile.getString("avatarId") ?: "avatar_01"
+    override suspend fun createTrip(draft: TripDraft): Result<Trip> {
+        return try {
+            val uid = auth.currentUser?.uid ?: return Result.failure(Exception("Not logged in"))
+            val profile = firestore.collection("users").document(uid).get().await()
+            val nickname = profile.getString("nickname") ?: ""
+            val avatarId = profile.getString("avatarId") ?: "avatar_01"
 
-        val joinCode = generateUniqueJoinCode()
-        val tripRef = firestore.collection("trips").document()
-        val tripId = tripRef.id
+            val joinCode = generateUniqueJoinCode()
+            val tripRef = firestore.collection("trips").document()
+            val tripId = tripRef.id
 
-        val data = mapOf(
-            "id" to tripId,
-            "name" to draft.name,
-            "destination" to draft.destination,
-            "startDate" to draft.startDate,
-            "endDate" to draft.endDate,
-            "totalBudget" to draft.totalBudget,
-            "currency" to draft.currency,
-            "visibility" to draft.visibility.name.lowercase(),
-            "joinCode" to joinCode,
-            "coverId" to draft.coverId,
-            "ownerId" to uid,
-            "memberIds" to listOf(uid),
-            "createdAt" to FieldValue.serverTimestamp()
-        )
-        tripRef.set(data).await()
-
-        // Write denormalized member doc
-        tripRef.collection("members").document(uid).set(
-            mapOf(
-                "userId" to uid,
-                "nickname" to nickname,
-                "avatarId" to avatarId,
-                "role" to "owner",
-                "joinedAt" to FieldValue.serverTimestamp()
+            val data = mapOf(
+                "id" to tripId,
+                "name" to draft.name,
+                "destination" to draft.destination,
+                "startDate" to draft.startDate,
+                "endDate" to draft.endDate,
+                "totalBudget" to draft.totalBudget,
+                "currency" to draft.currency,
+                "visibility" to draft.visibility.name.lowercase(),
+                "joinCode" to joinCode,
+                "coverId" to draft.coverId,
+                "ownerId" to uid,
+                "memberIds" to listOf(uid),
+                "createdAt" to FieldValue.serverTimestamp()
             )
-        ).await()
+            tripRef.set(data).await()
 
-        val trip = Trip(
-            id = tripId,
-            name = draft.name,
-            destination = draft.destination,
-            startDate = draft.startDate,
-            endDate = draft.endDate,
-            totalBudget = draft.totalBudget,
-            currency = draft.currency,
-            visibility = draft.visibility,
-            joinCode = joinCode,
-            coverId = draft.coverId,
-            ownerId = uid,
-            memberIds = listOf(uid)
-        )
-        Result.success(trip)
-    } catch (e: Exception) {
-        Result.failure(e)
+            // Write denormalized member doc
+            tripRef.collection("members").document(uid).set(
+                mapOf(
+                    "userId" to uid,
+                    "nickname" to nickname,
+                    "avatarId" to avatarId,
+                    "role" to "owner",
+                    "joinedAt" to FieldValue.serverTimestamp()
+                )
+            ).await()
+
+            val trip = Trip(
+                id = tripId,
+                name = draft.name,
+                destination = draft.destination,
+                startDate = draft.startDate,
+                endDate = draft.endDate,
+                totalBudget = draft.totalBudget,
+                currency = draft.currency,
+                visibility = draft.visibility,
+                joinCode = joinCode,
+                coverId = draft.coverId,
+                ownerId = uid,
+                memberIds = listOf(uid)
+            )
+            Result.success(trip)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 
     override suspend fun updateTrip(tripId: String, draft: TripDraft): Result<Unit> = try {
@@ -138,50 +140,67 @@ class FirebaseTripRepository(
         Result.failure(e)
     }
 
-    override suspend fun joinTrip(code: String): Result<String> = try {
-        val uid = auth.currentUser?.uid ?: return Result.failure(Exception("Not logged in"))
-        val profile = firestore.collection("users").document(uid).get().await()
-        val nickname = profile.getString("nickname") ?: ""
-        val avatarId = profile.getString("avatarId") ?: "avatar_01"
+    override suspend fun joinTrip(code: String): Result<String> {
+        return try {
+            val uid = auth.currentUser?.uid ?: return Result.failure(Exception("Not logged in"))
 
-        val snap = firestore.collection("trips")
-            .whereEqualTo("joinCode", code.uppercase())
-            .get().await()
-        val tripDoc = snap.documents.firstOrNull()
-            ?: return Result.failure(Exception("Trip not found"))
-        val tripId = tripDoc.id
+            val snap = firestore.collection("trips")
+                .whereEqualTo("joinCode", code.uppercase())
+                .get().await()
+            val tripDoc = snap.documents.firstOrNull()
+                ?: return Result.failure(Exception("Trip not found"))
+            val trip = tripDoc.toTrip()
+                ?: return Result.failure(Exception("Trip not found"))
 
-        // Add uid to memberIds array
-        firestore.collection("trips").document(tripId)
-            .update("memberIds", FieldValue.arrayUnion(uid))
-            .await()
+            // Check visibility — locked trips cannot be joined
+            if (trip.visibility == TripVisibility.LOCKED) {
+                return Result.failure(Exception("This trip is private and not accepting new members"))
+            }
 
-        // Write denormalized member doc
-        firestore.collection("trips").document(tripId).collection("members").document(uid).set(
-            mapOf(
-                "userId" to uid,
-                "nickname" to nickname,
-                "avatarId" to avatarId,
-                "role" to "member",
-                "joinedAt" to FieldValue.serverTimestamp()
-            )
-        ).await()
+            // Check if already a member
+            if (uid in trip.memberIds) {
+                return Result.failure(Exception("You are already a member of this trip"))
+            }
 
-        Result.success(tripId)
-    } catch (e: Exception) {
-        Result.failure(e)
+            val profile = firestore.collection("users").document(uid).get().await()
+            val nickname = profile.getString("nickname") ?: ""
+            val avatarId = profile.getString("avatarId") ?: "avatar_01"
+            val tripId = tripDoc.id
+
+            // Add uid to memberIds array
+            firestore.collection("trips").document(tripId)
+                .update("memberIds", FieldValue.arrayUnion(uid))
+                .await()
+
+            // Write denormalized member doc
+            firestore.collection("trips").document(tripId).collection("members").document(uid).set(
+                mapOf(
+                    "userId" to uid,
+                    "nickname" to nickname,
+                    "avatarId" to avatarId,
+                    "role" to "member",
+                    "joinedAt" to FieldValue.serverTimestamp()
+                )
+            ).await()
+
+            Result.success(tripId)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 
-    override suspend fun leaveTrip(tripId: String): Result<Unit> = try {
-        val uid = auth.currentUser?.uid ?: return Result.failure(Exception("Not logged in"))
-        firestore.collection("trips").document(tripId)
-            .update("memberIds", FieldValue.arrayRemove(uid))
-            .await()
-        firestore.collection("trips").document(tripId).collection("members").document(uid)
-            .delete().await()
-        Result.success(Unit)
-    } catch (e: Exception) {
-        Result.failure(e)
+    override suspend fun leaveTrip(tripId: String): Result<Unit> {
+        return try {
+            val uid = auth.currentUser?.uid ?: return Result.failure(Exception("Not logged in"))
+            firestore.collection("trips").document(tripId)
+                .update("memberIds", FieldValue.arrayRemove(uid))
+                .await()
+            firestore.collection("trips").document(tripId).collection("members").document(uid)
+                .delete().await()
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 
     override suspend fun deleteTrip(tripId: String): Result<Unit> = try {
@@ -216,34 +235,38 @@ class FirebaseTripRepository(
 
     // ── Document mappers ──────────────────────────────────────────────────────
 
-    private fun com.google.firebase.firestore.DocumentSnapshot.toTrip(): Trip? = try {
-        val visibilityStr = getString("visibility") ?: "open"
-        val visibility = if (visibilityStr == "locked") TripVisibility.LOCKED else TripVisibility.OPEN
-        @Suppress("UNCHECKED_CAST")
-        Trip(
-            id = id,
-            name = getString("name") ?: return null,
-            destination = getString("destination") ?: "",
-            startDate = getString("startDate") ?: return null,
-            endDate = getString("endDate") ?: return null,
-            totalBudget = getDouble("totalBudget") ?: 0.0,
-            currency = getString("currency") ?: "USD",
-            visibility = visibility,
-            joinCode = getString("joinCode") ?: "",
-            coverId = getString("coverId") ?: "cover_mountains",
-            ownerId = getString("ownerId") ?: "",
-            memberIds = get("memberIds") as? List<String> ?: emptyList(),
-            createdAt = getTimestamp("createdAt")?.toDate()?.time ?: 0L
-        )
-    } catch (e: Exception) { null }
+    private fun com.google.firebase.firestore.DocumentSnapshot.toTrip(): Trip? {
+        return try {
+            val visibilityStr = getString("visibility") ?: "open"
+            val visibility = if (visibilityStr == "locked") TripVisibility.LOCKED else TripVisibility.OPEN
+            @Suppress("UNCHECKED_CAST")
+            Trip(
+                id = id,
+                name = getString("name") ?: return null,
+                destination = getString("destination") ?: "",
+                startDate = getString("startDate") ?: return null,
+                endDate = getString("endDate") ?: return null,
+                totalBudget = getDouble("totalBudget") ?: 0.0,
+                currency = getString("currency") ?: "USD",
+                visibility = visibility,
+                joinCode = getString("joinCode") ?: "",
+                coverId = getString("coverId") ?: "cover_mountains",
+                ownerId = getString("ownerId") ?: "",
+                memberIds = get("memberIds") as? List<String> ?: emptyList(),
+                createdAt = getTimestamp("createdAt")?.toDate()?.time ?: 0L
+            )
+        } catch (e: Exception) { null }
+    }
 
-    private fun com.google.firebase.firestore.DocumentSnapshot.toMember(): Member? = try {
-        Member(
-            userId = getString("userId") ?: return null,
-            nickname = getString("nickname") ?: "",
-            avatarId = getString("avatarId") ?: "avatar_01",
-            role = getString("role") ?: "member",
-            joinedAt = getTimestamp("joinedAt")?.toDate()?.time ?: 0L
-        )
-    } catch (e: Exception) { null }
+    private fun com.google.firebase.firestore.DocumentSnapshot.toMember(): Member? {
+        return try {
+            Member(
+                userId = getString("userId") ?: return null,
+                nickname = getString("nickname") ?: "",
+                avatarId = getString("avatarId") ?: "avatar_01",
+                role = getString("role") ?: "member",
+                joinedAt = getTimestamp("joinedAt")?.toDate()?.time ?: 0L
+            )
+        } catch (e: Exception) { null }
+    }
 }

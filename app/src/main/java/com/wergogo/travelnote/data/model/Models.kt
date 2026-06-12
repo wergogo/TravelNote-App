@@ -3,7 +3,7 @@ package com.wergogo.travelnote.data.model
 enum class EventType { FLIGHT, ACTIVITY }
 
 enum class ExpenseCategory {
-    FOOD, TRANSPORT, SHOPPING, OTHER;
+    FOOD, TRANSPORT, SHOPPING, ACCOMMODATION, OTHER;
 
     fun displayName(): String = name.lowercase().replaceFirstChar { it.uppercase() }
 }

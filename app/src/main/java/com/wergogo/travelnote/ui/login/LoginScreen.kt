@@ -12,12 +12,15 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.wergogo.travelnote.TravelNoteApplication
 import com.wergogo.travelnote.ui.components.AppTopBar
 import com.wergogo.travelnote.ui.components.PrimaryButton
 import com.wergogo.travelnote.ui.components.TnTextButton
+import com.wergogo.travelnote.ui.theme.TravelnoteTheme
+import kotlinx.coroutines.launch
 
 @Composable
 fun LoginScreen(
@@ -28,6 +31,33 @@ fun LoginScreen(
     val vm: LoginViewModel = viewModel { LoginViewModel(app.container.authRepository) }
     val coroutineScope = rememberCoroutineScope()
 
+    LoginContent(
+        email = vm.email,
+        onEmailChange = vm::onEmailChange,
+        password = vm.password,
+        onPasswordChange = vm::onPasswordChange,
+        errorMessage = vm.errorMessage,
+        isLoading = vm.isLoading,
+        onSignIn = {
+            coroutineScope.launch {
+                if (vm.login()) onLoginSuccess()
+            }
+        },
+        onNavigateToRegister = onNavigateToRegister
+    )
+}
+
+@Composable
+internal fun LoginContent(
+    email: String,
+    onEmailChange: (String) -> Unit,
+    password: String,
+    onPasswordChange: (String) -> Unit,
+    errorMessage: String?,
+    isLoading: Boolean,
+    onSignIn: () -> Unit,
+    onNavigateToRegister: () -> Unit
+) {
     var passwordVisible by remember { mutableStateOf(false) }
 
     Scaffold(
@@ -43,8 +73,8 @@ fun LoginScreen(
             Spacer(Modifier.height(24.dp))
 
             OutlinedTextField(
-                value = vm.email,
-                onValueChange = vm::onEmailChange,
+                value = email,
+                onValueChange = onEmailChange,
                 label = { Text("Email") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
                 singleLine = true,
@@ -52,9 +82,10 @@ fun LoginScreen(
             )
 
             OutlinedTextField(
-                value = vm.password,
-                onValueChange = vm::onPasswordChange,
+                value = password,
+                onValueChange = onPasswordChange,
                 label = { Text("Password") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                 singleLine = true,
                 trailingIcon = {
@@ -68,9 +99,9 @@ fun LoginScreen(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            if (vm.errorMessage != null) {
+            if (errorMessage != null) {
                 Text(
-                    text = vm.errorMessage!!,
+                    text = errorMessage,
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodySmall
                 )
@@ -78,12 +109,8 @@ fun LoginScreen(
 
             PrimaryButton(
                 text = "Sign In",
-                enabled = !vm.isLoading,
-                onClick = {
-                    coroutineScope.launch {
-                        if (vm.login()) onLoginSuccess()
-                    }
-                }
+                enabled = !isLoading,
+                onClick = onSignIn
             )
 
             TnTextButton(
@@ -91,5 +118,39 @@ fun LoginScreen(
                 onClick = onNavigateToRegister
             )
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun LoginScreenPreview() {
+    TravelnoteTheme {
+        LoginContent(
+            email = "user@example.com",
+            onEmailChange = {},
+            password = "password123",
+            onPasswordChange = {},
+            errorMessage = null,
+            isLoading = false,
+            onSignIn = {},
+            onNavigateToRegister = {}
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun LoginScreenErrorPreview() {
+    TravelnoteTheme {
+        LoginContent(
+            email = "user@example.com",
+            onEmailChange = {},
+            password = "wrong",
+            onPasswordChange = {},
+            errorMessage = "Invalid email or password",
+            isLoading = false,
+            onSignIn = {},
+            onNavigateToRegister = {}
+        )
     }
 }

@@ -18,11 +18,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.wergogo.travelnote.TravelNoteApplication
 import com.wergogo.travelnote.ui.components.AppTopBar
 import com.wergogo.travelnote.ui.components.PrimaryButton
+import com.wergogo.travelnote.ui.theme.TravelnoteTheme
 import kotlinx.coroutines.launch
 
 @Composable
@@ -36,6 +38,30 @@ fun JoinTripScreen(
     }
     val coroutineScope = rememberCoroutineScope()
 
+    JoinTripContent(
+        joinCode = vm.joinCode,
+        onCodeChange = vm::onCodeChange,
+        errorMessage = vm.errorMessage,
+        isLoading = vm.isLoading,
+        onJoin = {
+            coroutineScope.launch {
+                val id = vm.joinTrip()
+                if (id != null) onJoinSuccess(id)
+            }
+        },
+        onBack = onBack
+    )
+}
+
+@Composable
+internal fun JoinTripContent(
+    joinCode: String,
+    onCodeChange: (String) -> Unit,
+    errorMessage: String?,
+    isLoading: Boolean,
+    onJoin: () -> Unit,
+    onBack: () -> Unit
+) {
     Scaffold(
         topBar = { AppTopBar("Join a Trip", onBack = onBack) }
     ) { innerPadding ->
@@ -54,31 +80,56 @@ fun JoinTripScreen(
                 textAlign = TextAlign.Center
             )
             OutlinedTextField(
-                value = vm.joinCode,
-                onValueChange = vm::onCodeChange,
+                value = joinCode,
+                onValueChange = onCodeChange,
                 label = { Text("Join Code") },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters),
                 modifier = Modifier.fillMaxWidth()
             )
-            if (vm.errorMessage != null) {
+            if (errorMessage != null) {
                 Text(
-                    vm.errorMessage!!,
+                    errorMessage,
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodySmall
                 )
             }
             PrimaryButton(
                 text = "Join Trip",
-                enabled = !vm.isLoading,
+                enabled = !isLoading,
                 modifier = Modifier.fillMaxWidth(),
-                onClick = {
-                    coroutineScope.launch {
-                        val id = vm.joinTrip()
-                        if (id != null) onJoinSuccess(id)
-                    }
-                }
+                onClick = onJoin
             )
         }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun JoinTripScreenPreview() {
+    TravelnoteTheme {
+        JoinTripContent(
+            joinCode = "ABC123",
+            onCodeChange = {},
+            errorMessage = null,
+            isLoading = false,
+            onJoin = {},
+            onBack = {}
+        )
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun JoinTripScreenErrorPreview() {
+    TravelnoteTheme {
+        JoinTripContent(
+            joinCode = "WRONG1",
+            onCodeChange = {},
+            errorMessage = "No trip found with this code",
+            isLoading = false,
+            onJoin = {},
+            onBack = {}
+        )
     }
 }

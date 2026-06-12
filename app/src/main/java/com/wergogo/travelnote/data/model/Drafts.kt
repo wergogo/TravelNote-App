@@ -29,7 +29,8 @@ data class ExpenseDraft(
     val description: String,
     val lat: Double? = null,
     val lng: Double? = null,
-    val placeLabel: String = ""
+    val placeLabel: String = "",
+    val expenseId: String? = null  // null = add, non-null = edit existing
 )
 
 data class NoteDraft(

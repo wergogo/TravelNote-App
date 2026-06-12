@@ -58,4 +58,8 @@ class FirebaseAuthRepository(
     override suspend fun logout() {
         auth.signOut()
     }
+
+    override fun logoutSync() {
+        auth.signOut()
+    }
 }

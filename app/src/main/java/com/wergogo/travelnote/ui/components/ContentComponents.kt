@@ -24,7 +24,7 @@ import com.wergogo.travelnote.ui.theme.CategoryOther
 import com.wergogo.travelnote.ui.theme.CategoryShopping
 import com.wergogo.travelnote.ui.theme.CategoryStay
 import com.wergogo.travelnote.ui.theme.CategoryTransport
-import com.wergogo.travelnote.ui.theme.Secondary
+import com.wergogo.travelnote.ui.theme.Success
 import com.wergogo.travelnote.util.DefaultImages
 import java.time.Instant
 import java.time.ZoneId
@@ -94,7 +94,7 @@ fun CategoryChip(
     )
 }
 
-/** Coral-coloured currency amount with tabular figures. */
+/** Green currency amount with tabular figures. */
 @Composable
 fun AmountText(
     amount: Double,
@@ -104,7 +104,7 @@ fun AmountText(
     Text(
         text = "$currency %.2f".format(amount),
         style = MaterialTheme.typography.bodyMedium,
-        color = Secondary,
+        color = Success,
         fontWeight = FontWeight.Medium,
         modifier = modifier
     )

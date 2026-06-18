@@ -1,19 +1,24 @@
 package com.wergogo.travelnote.ui.tripoverview
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.UnfoldLess
+import androidx.compose.material.icons.filled.UnfoldMore
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -24,17 +29,22 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.wergogo.travelnote.TravelNoteApplication
+import com.wergogo.travelnote.data.model.EventType
 import com.wergogo.travelnote.data.model.Member
 import com.wergogo.travelnote.data.model.Trip
 import com.wergogo.travelnote.data.model.TripVisibility
@@ -42,6 +52,7 @@ import com.wergogo.travelnote.ui.components.AppTopBar
 import com.wergogo.travelnote.ui.components.BudgetBar
 import com.wergogo.travelnote.ui.components.EmptyState
 import com.wergogo.travelnote.ui.components.MemberAvatarRow
+import com.wergogo.travelnote.ui.theme.Success
 import com.wergogo.travelnote.ui.theme.TravelnoteTheme
 import com.wergogo.travelnote.util.DefaultImages
 
@@ -60,6 +71,7 @@ fun TripOverviewScreen(
     val trip by vm.trip.collectAsState()
     val members by vm.members.collectAsState()
     val spent by vm.spent.collectAsState()
+    val daySummaries by vm.daySummaries.collectAsState()
     val currentUid = vm.currentUserId
     val coroutineScope = rememberCoroutineScope()
 
@@ -67,6 +79,7 @@ fun TripOverviewScreen(
         trip = trip,
         members = members,
         spent = spent,
+        daySummaries = daySummaries,
         isOwner = currentUid == trip?.ownerId,
         onDayClick = onDayClick,
         onEditTrip = onEditTrip,
@@ -80,12 +93,15 @@ internal fun TripOverviewContent(
     trip: Trip?,
     members: List<Member>,
     spent: Double,
+    daySummaries: Map<String, DaySummary>,
     isOwner: Boolean,
     onDayClick: (dateKey: String) -> Unit,
     onEditTrip: () -> Unit,
     onMembersClick: () -> Unit,
     onBack: () -> Unit
 ) {
+    var expanded by rememberSaveable { mutableStateOf(true) }
+
     Scaffold(
         topBar = {
             AppTopBar(
@@ -165,28 +181,94 @@ internal fun TripOverviewContent(
                     }
                 }
 
-                // 3. Section header
+                // 3. Section header with expand/collapse toggle
                 item {
-                    Text(
-                        text = "Itinerary",
-                        style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.padding(vertical = 4.dp)
-                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Itinerary",
+                            style = MaterialTheme.typography.titleMedium
+                        )
+                        IconButton(onClick = { expanded = !expanded }) {
+                            Icon(
+                                imageVector = if (expanded) Icons.Default.UnfoldLess else Icons.Default.UnfoldMore,
+                                contentDescription = if (expanded) "Collapse details" else "Expand details"
+                            )
+                        }
+                    }
                 }
 
-                // 4. Day tiles
+                // 4. Day tiles with optional summary
                 items(dateKeys) { dateKey ->
+                    val summary = daySummaries[dateKey]
+
                     ElevatedCard(
                         onClick = { onDayClick(dateKey) },
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Row(
-                            modifier = Modifier.padding(16.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(dateKey, style = MaterialTheme.typography.bodyMedium)
-                            Icon(Icons.Default.ChevronRight, contentDescription = null)
+                        Column {
+                            // Date header row
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(dateKey, style = MaterialTheme.typography.bodyMedium)
+                                Icon(Icons.Default.ChevronRight, contentDescription = null)
+                            }
+
+                            // Expandable detail section
+                            AnimatedVisibility(visible = expanded && summary != null) {
+                                summary?.let { s ->
+                                    val hasContent = s.events.isNotEmpty() || s.totalExpense > 0
+                                    if (hasContent) {
+                                        Column(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(start = 16.dp, end = 16.dp, bottom = 12.dp),
+                                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                                        ) {
+                                            // Event summaries
+                                            s.events.forEach { event ->
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    Text(
+                                                        text = event.time,
+                                                        style = MaterialTheme.typography.labelSmall,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                        modifier = Modifier.width(48.dp)
+                                                    )
+                                                    Spacer(Modifier.width(8.dp))
+                                                    Text(
+                                                        text = if (event.type == EventType.FLIGHT)
+                                                            "${event.depAirport} \u2192 ${event.arrAirport}"
+                                                        else
+                                                            event.title,
+                                                        style = MaterialTheme.typography.bodySmall,
+                                                        maxLines = 1
+                                                    )
+                                                }
+                                            }
+                                            // Total expense for the day
+                                            if (s.totalExpense > 0) {
+                                                Spacer(Modifier.height(2.dp))
+                                                Text(
+                                                    text = "${trip.currency} ${"%.2f".format(s.totalExpense)} spent",
+                                                    style = MaterialTheme.typography.labelSmall,
+                                                    fontWeight = FontWeight.Medium,
+                                                    color = Success
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -197,7 +279,7 @@ internal fun TripOverviewContent(
 
 @Preview(showBackground = true)
 @Composable
-private fun TripOverviewScreenPreview() {
+private fun TripOverviewExpandedPreview() {
     TravelnoteTheme {
         TripOverviewContent(
             trip = Trip(
@@ -205,22 +287,41 @@ private fun TripOverviewScreenPreview() {
                 name = "Summer in Paris",
                 destination = "Paris, France",
                 startDate = "2026-07-01",
-                endDate = "2026-07-04",
+                endDate = "2026-07-03",
                 totalBudget = 3000.0,
                 currency = "EUR",
                 visibility = TripVisibility.OPEN,
                 joinCode = "PAR123",
                 coverId = "cover_city",
                 ownerId = "user1",
-                memberIds = listOf("user1", "user2", "user3"),
+                memberIds = listOf("user1", "user2"),
                 createdAt = System.currentTimeMillis()
             ),
             members = listOf(
                 Member(userId = "user1", nickname = "Alice", avatarId = "avatar_01", role = "owner", joinedAt = System.currentTimeMillis()),
-                Member(userId = "user2", nickname = "Bob", avatarId = "avatar_03", role = "member", joinedAt = System.currentTimeMillis()),
-                Member(userId = "user3", nickname = "Charlie", avatarId = "avatar_05", role = "member", joinedAt = System.currentTimeMillis())
+                Member(userId = "user2", nickname = "Bob", avatarId = "avatar_03", role = "member", joinedAt = System.currentTimeMillis())
             ),
             spent = 1250.0,
+            daySummaries = mapOf(
+                "2026-07-01" to DaySummary(
+                    events = listOf(
+                        com.wergogo.travelnote.data.model.Event(id = "e1", type = EventType.FLIGHT, time = "08:00", depAirport = "JFK", arrAirport = "CDG", flightNumber = "AF007", title = "", locationName = "", authorId = "u1", authorNickname = "Alice", authorAvatarId = "avatar_01", createdAt = 0L),
+                        com.wergogo.travelnote.data.model.Event(id = "e2", type = EventType.ACTIVITY, time = "18:00", title = "Check in hotel", locationName = "", depAirport = "", arrAirport = "", flightNumber = "", authorId = "u1", authorNickname = "Alice", authorAvatarId = "avatar_01", createdAt = 0L)
+                    ),
+                    totalExpense = 85.0
+                ),
+                "2026-07-02" to DaySummary(
+                    events = listOf(
+                        com.wergogo.travelnote.data.model.Event(id = "e3", type = EventType.ACTIVITY, time = "10:00", title = "Louvre Museum", locationName = "", depAirport = "", arrAirport = "", flightNumber = "", authorId = "u2", authorNickname = "Bob", authorAvatarId = "avatar_03", createdAt = 0L),
+                        com.wergogo.travelnote.data.model.Event(id = "e4", type = EventType.ACTIVITY, time = "14:30", title = "Eiffel Tower", locationName = "", depAirport = "", arrAirport = "", flightNumber = "", authorId = "u1", authorNickname = "Alice", authorAvatarId = "avatar_01", createdAt = 0L)
+                    ),
+                    totalExpense = 120.50
+                ),
+                "2026-07-03" to DaySummary(
+                    events = emptyList(),
+                    totalExpense = 0.0
+                )
+            ),
             isOwner = true,
             onDayClick = {},
             onEditTrip = {},
@@ -232,7 +333,7 @@ private fun TripOverviewScreenPreview() {
 
 @Preview(showBackground = true)
 @Composable
-private fun TripOverviewScreenMemberPreview() {
+private fun TripOverviewCollapsedPreview() {
     TravelnoteTheme {
         TripOverviewContent(
             trip = Trip(
@@ -255,6 +356,7 @@ private fun TripOverviewScreenMemberPreview() {
                 Member(userId = "user1", nickname = "Me", avatarId = "avatar_04", role = "member", joinedAt = System.currentTimeMillis())
             ),
             spent = 4800.0,
+            daySummaries = emptyMap(),
             isOwner = false,
             onDayClick = {},
             onEditTrip = {},

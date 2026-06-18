@@ -2,6 +2,7 @@ package com.wergogo.travelnote.ui.tripoverview
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.wergogo.travelnote.data.model.Event
 import com.wergogo.travelnote.data.model.Member
 import com.wergogo.travelnote.data.model.Trip
 import com.wergogo.travelnote.data.repository.AuthRepository
@@ -16,6 +17,11 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+
+data class DaySummary(
+    val events: List<Event> = emptyList(),
+    val totalExpense: Double = 0.0
+)
 
 class TripOverviewViewModel(
     private val authRepo: AuthRepository,
@@ -33,6 +39,9 @@ class TripOverviewViewModel(
     private val _spent = MutableStateFlow(0.0)
     val spent: StateFlow<Double> = _spent.asStateFlow()
 
+    private val _daySummaries = MutableStateFlow<Map<String, DaySummary>>(emptyMap())
+    val daySummaries: StateFlow<Map<String, DaySummary>> = _daySummaries.asStateFlow()
+
     val currentUserId: String?
         get() = authRepo.currentUserId
 
@@ -49,19 +58,29 @@ class TripOverviewViewModel(
             _trip.filterNotNull().collect { trip ->
                 spendingJob?.cancel()
                 val dateKeys = generateDateKeys(trip.startDate, trip.endDate)
-                if (dateKeys.isEmpty()) { _spent.value = 0.0; return@collect }
+                if (dateKeys.isEmpty()) { _spent.value = 0.0; _daySummaries.value = emptyMap(); return@collect }
 
                 spendingJob = viewModelScope.launch {
-                    val flows = dateKeys.flatMap { dateKey ->
-                        listOf(
+                    // Per-day summary flows (events + expense totals)
+                    val summaryFlows = dateKeys.map { dateKey ->
+                        combine(
+                            dayRepo.observeEvents(tripId, dateKey),
                             dayRepo.observeExpenses(tripId, dateKey)
-                                .map { list -> list.sumOf { it.amount } },
-                            dayRepo.observeEvents(tripId, dateKey)
-                                .map { list -> list.sumOf { it.cost } }
-                        )
+                        ) { events, expenses ->
+                            dateKey to DaySummary(
+                                events = events.sortedBy { it.time },
+                                totalExpense = expenses.sumOf { it.amount } + events.sumOf { it.cost }
+                            )
+                        }
                     }
-                    combine(flows) { values -> values.toList().sum() }
-                        .collect { _spent.value = it }
+
+                    combine(summaryFlows) { pairs ->
+                        pairs.toMap()
+                    }.collect { summaryMap ->
+                        _daySummaries.value = summaryMap
+                        // totalExpense already includes event costs
+                        _spent.value = summaryMap.values.sumOf { it.totalExpense }
+                    }
                 }
             }
         }

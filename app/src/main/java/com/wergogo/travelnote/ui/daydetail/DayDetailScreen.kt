@@ -1,9 +1,11 @@
 package com.wergogo.travelnote.ui.daydetail
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -178,7 +180,20 @@ internal fun DayDetailContent(
             )
         }
     ) { innerPadding ->
-        LazyColumn(
+        val isEmpty = events.isEmpty() && expenses.isEmpty() && notes.isEmpty()
+
+        if (isEmpty) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+                contentAlignment = Alignment.Center
+            ) {
+                EmptyState("Nothing here yet \u2014 add an event, expense, or note!")
+            }
+        }
+
+        if (!isEmpty) LazyColumn(
             modifier = Modifier.padding(innerPadding),
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -293,12 +308,6 @@ internal fun DayDetailContent(
                 }
             }
 
-            // Empty state
-            if (events.isEmpty() && expenses.isEmpty() && notes.isEmpty()) {
-                item {
-                    EmptyState("Nothing here yet \u2014 add an event, expense, or note!")
-                }
-            }
         }
     }
 }

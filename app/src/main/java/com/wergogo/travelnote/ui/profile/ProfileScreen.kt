@@ -22,6 +22,7 @@ import com.wergogo.travelnote.ui.components.AvatarPicker
 import com.wergogo.travelnote.ui.components.BottomNavTab
 import com.wergogo.travelnote.ui.components.PrimaryButton
 import com.wergogo.travelnote.ui.components.SecondaryButton
+import com.wergogo.travelnote.ui.components.TnTextButton
 import com.wergogo.travelnote.ui.components.TravelNoteBottomNav
 import com.wergogo.travelnote.ui.theme.TravelnoteTheme
 import com.wergogo.travelnote.util.DefaultImages
@@ -30,6 +31,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun ProfileScreen(
     onLogout: () -> Unit,
+    onChangePassword: () -> Unit,
     onTripsClick: () -> Unit
 ) {
     val app = LocalContext.current.applicationContext as TravelNoteApplication
@@ -73,6 +75,7 @@ fun ProfileScreen(
             vm.logout()
             onLogout()
         },
+        onChangePassword = onChangePassword,
         onTripsClick = onTripsClick,
         snackbarHostState = snackbarHostState
     )
@@ -87,6 +90,7 @@ internal fun ProfileContent(
     isLoading: Boolean,
     onAvatarEdit: () -> Unit,
     onSave: () -> Unit,
+    onChangePassword: () -> Unit,
     onLogout: () -> Unit,
     onTripsClick: () -> Unit,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() }
@@ -159,6 +163,13 @@ internal fun ProfileContent(
                 enabled = !isLoading
             )
 
+            Spacer(modifier = Modifier.height(4.dp))
+
+            TnTextButton(
+                text = "Change Password",
+                onClick = onChangePassword
+            )
+
             Spacer(modifier = Modifier.height(8.dp))
 
             SecondaryButton(
@@ -181,6 +192,7 @@ private fun ProfileScreenPreview() {
             isLoading = false,
             onAvatarEdit = {},
             onSave = {},
+            onChangePassword = {},
             onLogout = {},
             onTripsClick = {}
         )
@@ -199,6 +211,7 @@ private fun ProfileScreenErrorPreview() {
             isLoading = false,
             onAvatarEdit = {},
             onSave = {},
+            onChangePassword = {},
             onLogout = {},
             onTripsClick = {}
         )

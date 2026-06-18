@@ -7,6 +7,7 @@ interface AuthRepository {
     fun authState(): Flow<Boolean>
     suspend fun register(email: String, password: String, nickname: String): Result<Unit>
     suspend fun login(email: String, password: String): Result<Unit>
+    suspend fun changePassword(currentPassword: String, newPassword: String): Result<Unit>
     suspend fun logout()
     fun logoutSync()
 }

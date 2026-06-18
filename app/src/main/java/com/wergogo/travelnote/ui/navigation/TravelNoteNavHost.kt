@@ -25,6 +25,7 @@ import com.wergogo.travelnote.ui.daydetail.DayDetailScreen
 import com.wergogo.travelnote.ui.addevent.AddEventScreen
 import com.wergogo.travelnote.ui.addexpense.AddExpenseSheet
 import com.wergogo.travelnote.ui.addnote.AddNoteSheet
+import com.wergogo.travelnote.ui.changepassword.ChangePasswordScreen
 
 @Composable
 fun TravelNoteNavHost(
@@ -87,9 +88,22 @@ fun TravelNoteNavHost(
                         popUpTo(navController.graph.id) { inclusive = true }
                     }
                 },
+                onChangePassword = {
+                    navController.navigate(Screen.ChangePassword.route)
+                },
                 onTripsClick = {
                     navController.popBackStack(Screen.Home.route, inclusive = false)
                 }
+            )
+        }
+        composable(Screen.ChangePassword.route) {
+            ChangePasswordScreen(
+                onPasswordChanged = {
+                    navController.navigate(Screen.Login.route) {
+                        popUpTo(navController.graph.id) { inclusive = true }
+                    }
+                },
+                onBack = { navController.popBackStack() }
             )
         }
         composable(Screen.CreateTrip.route) {

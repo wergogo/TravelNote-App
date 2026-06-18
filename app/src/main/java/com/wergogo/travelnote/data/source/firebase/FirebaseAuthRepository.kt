@@ -1,5 +1,6 @@
 package com.wergogo.travelnote.data.source.firebase
 
+import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
@@ -50,6 +51,20 @@ class FirebaseAuthRepository(
 
     override suspend fun login(email: String, password: String): Result<Unit> = try {
         auth.signInWithEmailAndPassword(email, password).await()
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    override suspend fun changePassword(
+        currentPassword: String,
+        newPassword: String
+    ): Result<Unit> = try {
+        val user = auth.currentUser ?: throw IllegalStateException("Not signed in")
+        val email = user.email ?: throw IllegalStateException("No email on account")
+        val credential = EmailAuthProvider.getCredential(email, currentPassword)
+        user.reauthenticate(credential).await()
+        user.updatePassword(newPassword).await()
         Result.success(Unit)
     } catch (e: Exception) {
         Result.failure(e)

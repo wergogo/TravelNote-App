@@ -91,7 +91,11 @@ class FirebaseDayRepository(
     override suspend fun upsertEvent(
         tripId: String, dateKey: String, draft: EventDraft
     ): Result<Unit> = try {
-        val author = currentAuthor()
+        val author = if (draft.authorId != null) {
+            Triple(draft.authorId, draft.authorNickname ?: "", draft.authorAvatarId ?: "avatar_01")
+        } else {
+            currentAuthor()
+        }
         val ref = if (draft.eventId != null) {
             dayRef(tripId, dateKey).collection("events").document(draft.eventId)
         } else {
@@ -127,7 +131,11 @@ class FirebaseDayRepository(
     override suspend fun addExpense(
         tripId: String, dateKey: String, draft: ExpenseDraft
     ): Result<Unit> = try {
-        val author = currentAuthor()
+        val author = if (draft.authorId != null) {
+            Triple(draft.authorId, draft.authorNickname ?: "", draft.authorAvatarId ?: "avatar_01")
+        } else {
+            currentAuthor()
+        }
         val ref = if (draft.expenseId != null) {
             dayRef(tripId, dateKey).collection("expenses").document(draft.expenseId)
         } else {

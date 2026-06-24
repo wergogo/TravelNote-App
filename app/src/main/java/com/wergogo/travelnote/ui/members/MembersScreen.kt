@@ -26,6 +26,7 @@ import com.wergogo.travelnote.data.model.Member
 import com.wergogo.travelnote.data.model.Trip
 import com.wergogo.travelnote.data.model.TripVisibility
 import com.wergogo.travelnote.ui.components.AppTopBar
+import com.wergogo.travelnote.ui.theme.Success
 import com.wergogo.travelnote.ui.theme.TravelnoteTheme
 import kotlinx.coroutines.launch
 import com.wergogo.travelnote.util.DefaultImages
@@ -38,10 +39,11 @@ fun MembersScreen(
 ) {
     val app = LocalContext.current.applicationContext as TravelNoteApplication
     val vm: MembersViewModel = viewModel(key = tripId) {
-        MembersViewModel(app.container.authRepository, app.container.tripRepository, tripId)
+        MembersViewModel(app.container.authRepository, app.container.tripRepository, app.container.dayRepository, tripId)
     }
     val trip by vm.trip.collectAsState()
     val members by vm.members.collectAsState()
+    val memberSpending by vm.memberSpending.collectAsState()
     val coroutineScope = rememberCoroutineScope()
     val clipboardManager = LocalClipboardManager.current
 
@@ -85,6 +87,8 @@ fun MembersScreen(
     MembersContent(
         joinCode = trip?.joinCode ?: "",
         members = members,
+        memberSpending = memberSpending,
+        currency = trip?.currency ?: "USD",
         isOwner = vm.currentUserId == trip?.ownerId,
         onCopyCode = { clipboardManager.setText(AnnotatedString(trip?.joinCode ?: "")) },
         onRegenerateCode = { coroutineScope.launch { vm.regenerateJoinCode() } },
@@ -98,6 +102,8 @@ fun MembersScreen(
 internal fun MembersContent(
     joinCode: String,
     members: List<Member>,
+    memberSpending: Map<String, Double> = emptyMap(),
+    currency: String = "USD",
     isOwner: Boolean,
     onCopyCode: () -> Unit,
     onRegenerateCode: () -> Unit,
@@ -171,6 +177,14 @@ internal fun MembersContent(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
+                    val spent = memberSpending[member.userId] ?: 0.0
+                    if (spent > 0) {
+                        Text(
+                            text = "%.2f %s".format(spent, currency),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = Success
+                        )
+                    }
                 }
             }
 
@@ -220,6 +234,8 @@ private fun MembersScreenOwnerPreview() {
                 Member(userId = "user3", nickname = "Charlie", avatarId = "avatar_05", role = "member", joinedAt = System.currentTimeMillis()),
                 Member(userId = "user4", nickname = "Diana", avatarId = "avatar_07", role = "member", joinedAt = System.currentTimeMillis())
             ),
+            memberSpending = mapOf("user1" to 250.0, "user2" to 120.50, "user3" to 75.0),
+            currency = "USD",
             isOwner = true,
             onCopyCode = {},
             onRegenerateCode = {},
@@ -240,6 +256,8 @@ private fun MembersScreenMemberPreview() {
                 Member(userId = "user1", nickname = "Alice", avatarId = "avatar_01", role = "owner", joinedAt = System.currentTimeMillis()),
                 Member(userId = "user2", nickname = "Bob", avatarId = "avatar_03", role = "member", joinedAt = System.currentTimeMillis())
             ),
+            memberSpending = mapOf("user1" to 180.0, "user2" to 95.25),
+            currency = "EUR",
             isOwner = false,
             onCopyCode = {},
             onRegenerateCode = {},

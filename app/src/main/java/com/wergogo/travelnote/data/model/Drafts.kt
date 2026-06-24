@@ -20,7 +20,11 @@ data class EventDraft(
     val arrAirport: String = "", // IATA 3-letter, uppercase
     val title: String = "",
     val locationName: String = "",
-    val eventId: String? = null  // null = add, non-null = edit existing
+    val eventId: String? = null, // null = add, non-null = edit existing
+    // Optional payer override (null = use current user)
+    val authorId: String? = null,
+    val authorNickname: String? = null,
+    val authorAvatarId: String? = null
 )
 
 data class ExpenseDraft(
@@ -30,7 +34,11 @@ data class ExpenseDraft(
     val lat: Double? = null,
     val lng: Double? = null,
     val placeLabel: String = "",
-    val expenseId: String? = null  // null = add, non-null = edit existing
+    val expenseId: String? = null, // null = add, non-null = edit existing
+    // Optional payer override (null = use current user)
+    val authorId: String? = null,
+    val authorNickname: String? = null,
+    val authorAvatarId: String? = null
 )
 
 data class NoteDraft(

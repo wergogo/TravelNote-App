@@ -14,7 +14,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.wergogo.travelnote.TravelNoteApplication
 import com.wergogo.travelnote.data.model.EventType
+import com.wergogo.travelnote.data.model.Member
 import com.wergogo.travelnote.ui.components.AppTopBar
+import com.wergogo.travelnote.ui.components.PayerSelector
 import com.wergogo.travelnote.ui.components.PrimaryButton
 import com.wergogo.travelnote.ui.theme.TravelnoteTheme
 import kotlinx.coroutines.launch
@@ -29,9 +31,15 @@ fun AddEventScreen(
 ) {
     val app = LocalContext.current.applicationContext as TravelNoteApplication
     val vm: AddEventViewModel = viewModel(key = "$tripId/$dateKey/$eventId") {
-        AddEventViewModel(app.container.dayRepository, tripId, dateKey, eventId)
+        AddEventViewModel(
+            app.container.dayRepository,
+            app.container.tripRepository,
+            app.container.authRepository,
+            tripId, dateKey, eventId
+        )
     }
     val coroutineScope = rememberCoroutineScope()
+    val members by vm.members.collectAsState()
 
     AddEventContent(
         isEditMode = vm.isEditMode,
@@ -51,6 +59,10 @@ fun AddEventScreen(
         onLocationNameChange = { vm.locationName = it },
         cost = vm.cost,
         onCostChange = { vm.cost = it },
+        members = members,
+        selectedPayerId = vm.selectedPayerId,
+        selectedPayerNickname = vm.selectedPayerNickname,
+        onPayerSelected = { vm.selectPayer(it) },
         errorMessage = vm.errorMessage,
         isLoading = vm.isLoading,
         onSave = {
@@ -81,6 +93,10 @@ internal fun AddEventContent(
     onLocationNameChange: (String) -> Unit,
     cost: String,
     onCostChange: (String) -> Unit,
+    members: List<Member> = emptyList(),
+    selectedPayerId: String = "",
+    selectedPayerNickname: String = "",
+    onPayerSelected: (Member) -> Unit = {},
     errorMessage: String?,
     isLoading: Boolean,
     onSave: () -> Unit,
@@ -178,7 +194,17 @@ internal fun AddEventContent(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            // 6. Error message
+            // 6. Payer selector
+            if (members.size > 1) {
+                PayerSelector(
+                    members = members,
+                    selectedPayerId = selectedPayerId,
+                    selectedPayerNickname = selectedPayerNickname,
+                    onPayerSelected = onPayerSelected
+                )
+            }
+
+            // 7. Error message
             if (errorMessage != null) {
                 Text(
                     text = errorMessage,
@@ -186,7 +212,7 @@ internal fun AddEventContent(
                 )
             }
 
-            // 7. Save button
+            // 8. Save button
             PrimaryButton(
                 text = "Save Event",
                 enabled = !isLoading,
@@ -218,6 +244,12 @@ private fun AddEventActivityPreview() {
             onLocationNameChange = {},
             cost = "25.00",
             onCostChange = {},
+            members = listOf(
+                Member(userId = "me", nickname = "Alice", avatarId = "avatar_01", role = "owner"),
+                Member(userId = "u2", nickname = "Bob", avatarId = "avatar_03", role = "member")
+            ),
+            selectedPayerId = "me",
+            selectedPayerNickname = "Alice",
             errorMessage = null,
             isLoading = false,
             onSave = {},

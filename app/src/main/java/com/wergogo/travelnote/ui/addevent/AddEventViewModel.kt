@@ -7,12 +7,20 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.wergogo.travelnote.data.model.EventDraft
 import com.wergogo.travelnote.data.model.EventType
+import com.wergogo.travelnote.data.model.Member
+import com.wergogo.travelnote.data.repository.AuthRepository
 import com.wergogo.travelnote.data.repository.DayRepository
+import com.wergogo.travelnote.data.repository.TripRepository
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class AddEventViewModel(
     private val dayRepo: DayRepository,
+    private val tripRepo: TripRepository,
+    private val authRepo: AuthRepository,
     private val tripId: String,
     private val dateKey: String,
     private val editEventId: String?   // null = adding new event
@@ -29,9 +37,31 @@ class AddEventViewModel(
     var isLoading by mutableStateOf(false)
     var errorMessage by mutableStateOf<String?>(null)
 
+    // Payer selection
+    private val _members = MutableStateFlow<List<Member>>(emptyList())
+    val members: StateFlow<List<Member>> = _members.asStateFlow()
+
+    var selectedPayerId by mutableStateOf(authRepo.currentUserId ?: "")
+    var selectedPayerNickname by mutableStateOf("")
+    var selectedPayerAvatarId by mutableStateOf("")
+
     val isEditMode: Boolean get() = editEventId != null
 
     init {
+        // Load trip members
+        viewModelScope.launch {
+            tripRepo.observeMembers(tripId).collect { memberList ->
+                _members.value = memberList
+                // Set default payer nickname from member list if not yet set
+                if (selectedPayerNickname.isEmpty()) {
+                    memberList.find { it.userId == selectedPayerId }?.let {
+                        selectedPayerNickname = it.nickname
+                        selectedPayerAvatarId = it.avatarId
+                    }
+                }
+            }
+        }
+
         // If editing, pre-load the event
         if (editEventId != null) {
             viewModelScope.launch {
@@ -46,9 +76,19 @@ class AddEventViewModel(
                         arrAirport = ev.arrAirport
                         title = ev.title
                         locationName = ev.locationName
+                        // Restore the original payer
+                        selectedPayerId = ev.authorId
+                        selectedPayerNickname = ev.authorNickname
+                        selectedPayerAvatarId = ev.authorAvatarId
                     }
             }
         }
+    }
+
+    fun selectPayer(member: Member) {
+        selectedPayerId = member.userId
+        selectedPayerNickname = member.nickname
+        selectedPayerAvatarId = member.avatarId
     }
 
     suspend fun save(): Boolean {
@@ -78,6 +118,9 @@ class AddEventViewModel(
         }
         isLoading = true
         errorMessage = null
+
+        // Only set author override if a different member is selected
+        val isSelf = selectedPayerId == authRepo.currentUserId
         val draft = EventDraft(
             type = eventType,
             time = time.trim(),
@@ -87,7 +130,10 @@ class AddEventViewModel(
             arrAirport = arrAirport.uppercase().trim(),
             title = title.trim(),
             locationName = locationName.trim(),
-            eventId = editEventId
+            eventId = editEventId,
+            authorId = if (!isSelf) selectedPayerId else null,
+            authorNickname = if (!isSelf) selectedPayerNickname else null,
+            authorAvatarId = if (!isSelf) selectedPayerAvatarId else null
         )
         val result = dayRepo.upsertEvent(tripId, dateKey, draft)
         isLoading = false

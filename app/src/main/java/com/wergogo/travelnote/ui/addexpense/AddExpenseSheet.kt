@@ -23,7 +23,9 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.wergogo.travelnote.TravelNoteApplication
 import com.wergogo.travelnote.data.model.ExpenseCategory
+import com.wergogo.travelnote.data.model.Member
 import com.wergogo.travelnote.ui.components.AppTopBar
+import com.wergogo.travelnote.ui.components.PayerSelector
 import com.wergogo.travelnote.ui.components.PrimaryButton
 import com.wergogo.travelnote.ui.theme.TravelnoteTheme
 import kotlinx.coroutines.launch
@@ -39,9 +41,15 @@ fun AddExpenseSheet(
     val app = LocalContext.current.applicationContext as TravelNoteApplication
     val context = LocalContext.current
     val vm: AddExpenseViewModel = viewModel(key = "$tripId/$dateKey/${expenseId ?: "new"}") {
-        AddExpenseViewModel(app.container.dayRepository, tripId, dateKey, expenseId)
+        AddExpenseViewModel(
+            app.container.dayRepository,
+            app.container.tripRepository,
+            app.container.authRepository,
+            tripId, dateKey, expenseId
+        )
     }
     val coroutineScope = rememberCoroutineScope()
+    val members by vm.members.collectAsState()
 
     val locationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -62,6 +70,10 @@ fun AddExpenseSheet(
         description = vm.description,
         onDescriptionChange = { vm.description = it },
         placeLabel = vm.placeLabel,
+        members = members,
+        selectedPayerId = vm.selectedPayerId,
+        selectedPayerNickname = vm.selectedPayerNickname,
+        onPayerSelected = { vm.selectPayer(it) },
         errorMessage = vm.errorMessage,
         isLoading = vm.isLoading,
         onLocationClick = {
@@ -89,6 +101,10 @@ internal fun AddExpenseContent(
     description: String,
     onDescriptionChange: (String) -> Unit,
     placeLabel: String,
+    members: List<Member> = emptyList(),
+    selectedPayerId: String = "",
+    selectedPayerNickname: String = "",
+    onPayerSelected: (Member) -> Unit = {},
     errorMessage: String?,
     isLoading: Boolean,
     onLocationClick: () -> Unit,
@@ -166,6 +182,16 @@ internal fun AddExpenseContent(
                 }
             }
 
+            // Payer selector
+            if (members.size > 1) {
+                PayerSelector(
+                    members = members,
+                    selectedPayerId = selectedPayerId,
+                    selectedPayerNickname = selectedPayerNickname,
+                    onPayerSelected = onPayerSelected
+                )
+            }
+
             // Error message
             if (errorMessage != null) {
                 Text(
@@ -198,6 +224,12 @@ private fun AddExpenseSheetPreview() {
             description = "Dinner at Le Comptoir",
             onDescriptionChange = {},
             placeLabel = "Le Comptoir du Pantheon, Paris",
+            members = listOf(
+                Member(userId = "me", nickname = "Alice", avatarId = "avatar_01", role = "owner"),
+                Member(userId = "u2", nickname = "Bob", avatarId = "avatar_03", role = "member")
+            ),
+            selectedPayerId = "me",
+            selectedPayerNickname = "Alice",
             errorMessage = null,
             isLoading = false,
             onLocationClick = {},

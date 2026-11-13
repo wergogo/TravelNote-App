@@ -1,30 +1,51 @@
 package com.wergogo.travelnote.data.source.firebase
 
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.DocumentReference
+import com.google.firebase.firestore.DocumentSnapshot
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.FirebaseFirestoreException
+import com.google.firebase.firestore.Source
 import com.wergogo.travelnote.data.model.Member
 import com.wergogo.travelnote.data.model.Trip
 import com.wergogo.travelnote.data.model.TripDraft
 import com.wergogo.travelnote.data.model.TripVisibility
 import com.wergogo.travelnote.data.repository.TripRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 
 private const val JOIN_CODE_CHARS = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
+private const val JOIN_CODE_LENGTH = 6
 
+/**
+ * Firestore-backed trips.
+ *
+ * Join codes live in `joinCodes/{CODE}` → `{ tripId }`, so someone who knows a code can find its
+ * trip without being able to read or list other people's trips (see `firebase/firestore.rules`).
+ * Changes that touch several documents are committed as one batch: the security rules check them
+ * together, and a failure can never leave a half-created or half-joined trip.
+ */
 class FirebaseTripRepository(
     private val auth: FirebaseAuth,
     private val firestore: FirebaseFirestore
 ) : TripRepository {
 
+    private val tripsRef = firestore.collection("trips")
+    private val joinCodesRef = firestore.collection("joinCodes")
+    private val deletedTripsRef = firestore.collection("deletedTrips")
+
+    /** User for whom [ensureJoinCodes] has already completed in this process. */
+    @Volatile private var joinCodesCheckedFor: String? = null
+
     // ── Observe ───────────────────────────────────────────────────────────────
 
     override fun observeMyTrips(): Flow<List<Trip>> = callbackFlow {
         val uid = auth.currentUser?.uid ?: run { trySend(emptyList()); close(); return@callbackFlow }
-        val reg = firestore.collection("trips")
+        val reg = tripsRef
             .whereArrayContains("memberIds", uid)
             .addSnapshotListener { snap, err ->
                 if (err != null) { close(); return@addSnapshotListener }
@@ -34,7 +55,7 @@ class FirebaseTripRepository(
     }
 
     override fun observeTrip(tripId: String): Flow<Trip?> = callbackFlow {
-        val reg = firestore.collection("trips").document(tripId)
+        val reg = tripsRef.document(tripId)
             .addSnapshotListener { snap, err ->
                 if (err != null) { close(); return@addSnapshotListener }
                 trySend(snap?.takeIf { it.exists() }?.toTrip())
@@ -43,7 +64,7 @@ class FirebaseTripRepository(
     }
 
     override fun observeMembers(tripId: String): Flow<List<Member>> = callbackFlow {
-        val reg = firestore.collection("trips").document(tripId).collection("members")
+        val reg = tripsRef.document(tripId).collection("members")
             .addSnapshotListener { snap, err ->
                 if (err != null) { close(); return@addSnapshotListener }
                 trySend(snap?.documents?.mapNotNull { it.toMember() } ?: emptyList())
@@ -61,7 +82,7 @@ class FirebaseTripRepository(
             val avatarId = profile.getString("avatarId") ?: "avatar_01"
 
             val joinCode = generateUniqueJoinCode()
-            val tripRef = firestore.collection("trips").document()
+            val tripRef = tripsRef.document()
             val tripId = tripRef.id
 
             val data = mapOf(
@@ -79,18 +100,13 @@ class FirebaseTripRepository(
                 "memberIds" to listOf(uid),
                 "createdAt" to FieldValue.serverTimestamp()
             )
-            tripRef.set(data).await()
 
-            // Write denormalized member doc
-            tripRef.collection("members").document(uid).set(
-                mapOf(
-                    "userId" to uid,
-                    "nickname" to nickname,
-                    "avatarId" to avatarId,
-                    "role" to "owner",
-                    "joinedAt" to FieldValue.serverTimestamp()
-                )
-            ).await()
+            // Trip, the owner's member record and the join-code lookup are created together.
+            firestore.batch()
+                .set(tripRef, data)
+                .set(tripRef.collection("members").document(uid), memberDoc(uid, nickname, avatarId, role = "owner"))
+                .set(joinCodesRef.document(joinCode), mapOf("tripId" to tripId))
+                .commit().await()
 
             val trip = Trip(
                 id = tripId,
@@ -107,13 +123,15 @@ class FirebaseTripRepository(
                 memberIds = listOf(uid)
             )
             Result.success(trip)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
     override suspend fun updateTrip(tripId: String, draft: TripDraft): Result<Unit> = try {
-        firestore.collection("trips").document(tripId).update(
+        tripsRef.document(tripId).update(
             mapOf(
                 "name" to draft.name,
                 "destination" to draft.destination,
@@ -126,16 +144,8 @@ class FirebaseTripRepository(
             )
         ).await()
         Result.success(Unit)
-    } catch (e: Exception) {
-        Result.failure(e)
-    }
-
-    override suspend fun findByJoinCode(code: String): Result<Trip?> = try {
-        val snap = firestore.collection("trips")
-            .whereEqualTo("joinCode", code.uppercase())
-            .get().await()
-        val trip = snap.documents.firstOrNull()?.toTrip()
-        Result.success(trip)
+    } catch (e: CancellationException) {
+        throw e
     } catch (e: Exception) {
         Result.failure(e)
     }
@@ -144,46 +154,46 @@ class FirebaseTripRepository(
         return try {
             val uid = auth.currentUser?.uid ?: return Result.failure(Exception("Not logged in"))
 
-            val snap = firestore.collection("trips")
-                .whereEqualTo("joinCode", code.uppercase())
-                .get().await()
-            val tripDoc = snap.documents.firstOrNull()
-                ?: return Result.failure(Exception("Trip not found"))
-            val trip = tripDoc.toTrip()
-                ?: return Result.failure(Exception("Trip not found"))
-
-            // Check visibility — locked trips cannot be joined
-            if (trip.visibility == TripVisibility.LOCKED) {
-                return Result.failure(Exception("This trip is private and not accepting new members"))
+            // Codes only ever use JOIN_CODE_CHARS; anything else (such as "/") isn't a valid code.
+            val normalized = code.trim().uppercase()
+            if (normalized.length != JOIN_CODE_LENGTH || normalized.any { it !in JOIN_CODE_CHARS }) {
+                return Result.failure(Exception("Trip not found"))
             }
 
-            // Check if already a member
-            if (uid in trip.memberIds) {
-                return Result.failure(Exception("You are already a member of this trip"))
+            val record = joinCodesRef.document(normalized).get().await()
+            val tripId = record.getString("tripId")
+                ?: return Result.failure(Exception("Trip not found"))
+            val tripRef = tripsRef.document(tripId)
+
+            when (accessTo(tripRef)) {
+                TripAccess.MEMBER -> return Result.failure(Exception("You are already a member of this trip"))
+                TripAccess.NOT_FOUND -> return Result.failure(Exception("Trip not found"))
+                TripAccess.NO_ACCESS -> Unit   // expected for a non-member: go ahead and join
             }
 
             val profile = firestore.collection("users").document(uid).get().await()
             val nickname = profile.getString("nickname") ?: ""
             val avatarId = profile.getString("avatarId") ?: "avatar_01"
-            val tripId = tripDoc.id
 
-            // Add uid to memberIds array
-            firestore.collection("trips").document(tripId)
-                .update("memberIds", FieldValue.arrayUnion(uid))
-                .await()
-
-            // Write denormalized member doc
-            firestore.collection("trips").document(tripId).collection("members").document(uid).set(
-                mapOf(
-                    "userId" to uid,
-                    "nickname" to nickname,
-                    "avatarId" to avatarId,
-                    "role" to "member",
-                    "joinedAt" to FieldValue.serverTimestamp()
-                )
-            ).await()
-
+            try {
+                firestore.batch()
+                    .update(tripRef, "memberIds", FieldValue.arrayUnion(uid))
+                    // The member record carries the code used: the rules only accept the trip's current code.
+                    .set(
+                        tripRef.collection("members").document(uid),
+                        memberDoc(uid, nickname, avatarId, role = "member") + ("joinCode" to normalized)
+                    )
+                    .commit().await()
+            } catch (e: FirebaseFirestoreException) {
+                // The rules let a non-member add only themselves, only to an open trip, with its current code.
+                if (e.code == FirebaseFirestoreException.Code.PERMISSION_DENIED) {
+                    return Result.failure(Exception("This trip is private and not accepting new members"))
+                }
+                throw e
+            }
             Result.success(tripId)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }
@@ -192,50 +202,147 @@ class FirebaseTripRepository(
     override suspend fun leaveTrip(tripId: String): Result<Unit> {
         return try {
             val uid = auth.currentUser?.uid ?: return Result.failure(Exception("Not logged in"))
-            firestore.collection("trips").document(tripId)
-                .update("memberIds", FieldValue.arrayRemove(uid))
-                .await()
-            firestore.collection("trips").document(tripId).collection("members").document(uid)
-                .delete().await()
+            val tripRef = tripsRef.document(tripId)
+            firestore.batch()
+                .update(tripRef, "memberIds", FieldValue.arrayRemove(uid))
+                .delete(tripRef.collection("members").document(uid))
+                .commit().await()
             Result.success(Unit)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
-    override suspend fun deleteTrip(tripId: String): Result<Unit> = try {
-        firestore.collection("trips").document(tripId).delete().await()
-        Result.success(Unit)
+    override suspend fun deleteTrip(tripId: String): Result<Unit> {
+        return try {
+            val uid = auth.currentUser?.uid ?: return Result.failure(Exception("Not logged in"))
+            val tripRef = tripsRef.document(tripId)
+            val code = tripRef.get().await().getString("joinCode")
+            val memberRefs = tripRef.collection("members").get().await().documents.map { it.reference }
+
+            // One batch: member records, the join-code record, the trip itself, and a tombstone.
+            // Firestore keeps a deleted document's sub-collections (days, entries), so the tombstone
+            // stops anyone re-creating this id to read them.
+            val batch = firestore.batch()
+            memberRefs.forEach { batch.delete(it) }
+            if (code != null && joinCodeBelongsTo(code, tripId)) batch.delete(joinCodesRef.document(code))
+            batch.delete(tripRef)
+            batch.set(
+                deletedTripsRef.document(tripId),
+                mapOf("deletedBy" to uid, "deletedAt" to FieldValue.serverTimestamp())
+            )
+            batch.commit().await()
+            Result.success(Unit)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun regenerateJoinCode(tripId: String): Result<String> = try {
+        val tripRef = tripsRef.document(tripId)
+        val newCode = generateUniqueJoinCode()
+        // A transaction, so two regenerations at once (e.g. a double tap) can't leave an old code
+        // record behind: if the trip or its record changes underneath, Firestore retries.
+        firestore.runTransaction { tx ->
+            val oldCode = tx.get(tripRef).getString("joinCode")
+            val oldRecord = oldCode?.let { tx.get(joinCodesRef.document(it)) }
+            tx.update(tripRef, "joinCode", newCode)
+            tx.set(joinCodesRef.document(newCode), mapOf("tripId" to tripId))
+            if (oldCode != null && oldRecord?.getString("tripId") == tripId) {
+                tx.delete(joinCodesRef.document(oldCode))
+            }
+            newCode
+        }.await()
+        Result.success(newCode)
+    } catch (e: CancellationException) {
+        throw e
     } catch (e: Exception) {
         Result.failure(e)
     }
 
-    override suspend fun regenerateJoinCode(tripId: String): Result<String> = try {
-        val newCode = generateUniqueJoinCode()
-        firestore.collection("trips").document(tripId)
-            .update("joinCode", newCode)
-            .await()
-        Result.success(newCode)
-    } catch (e: Exception) {
-        Result.failure(e)
+    override suspend fun ensureJoinCodes(): Result<Unit> {
+        val uid = auth.currentUser?.uid ?: return Result.failure(Exception("Not logged in"))
+        if (joinCodesCheckedFor == uid) return Result.success(Unit)
+        return try {
+            val myTrips = tripsRef.whereArrayContains("memberIds", uid).get().await()
+            var firstError: Exception? = null
+            for (tripDoc in myTrips.documents) {
+                try {
+                    backfillJoinCode(tripDoc, uid)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    if (firstError == null) firstError = e   // keep going; retry next launch
+                }
+            }
+            if (firstError != null) {
+                Result.failure(firstError)
+            } else {
+                joinCodesCheckedFor = uid
+                Result.success(Unit)
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
+    /** Trips created before 1.0.2 have no lookup record; create it so their code works again. */
+    private suspend fun backfillJoinCode(tripDoc: DocumentSnapshot, uid: String) {
+        val code = tripDoc.getString("joinCode") ?: return
+        val codeRef = joinCodesRef.document(code)
+        val record = codeRef.get().await()
+        when {
+            !record.exists() -> codeRef.set(mapOf("tripId" to tripDoc.id)).await()
+            // An old code collided with a newer trip's code: only the owner can pick a new one.
+            record.getString("tripId") != tripDoc.id && tripDoc.getString("ownerId") == uid ->
+                regenerateJoinCode(tripDoc.id).getOrThrow()
+        }
+    }
+
+    private suspend fun joinCodeBelongsTo(code: String, tripId: String): Boolean =
+        joinCodesRef.document(code).get().await().getString("tripId") == tripId
+
+    private enum class TripAccess { MEMBER, NOT_FOUND, NO_ACCESS }
+
+    /** Only members can read a trip; anyone may learn that a trip id doesn't exist (see the rules). */
+    private suspend fun accessTo(ref: DocumentReference): TripAccess = try {
+        if (ref.get(Source.SERVER).await().exists()) TripAccess.MEMBER else TripAccess.NOT_FOUND
+    } catch (e: FirebaseFirestoreException) {
+        if (e.code == FirebaseFirestoreException.Code.PERMISSION_DENIED) TripAccess.NO_ACCESS else throw e
+    }
+
     private suspend fun generateUniqueJoinCode(): String {
         repeat(10) {
-            val code = (1..6).map { JOIN_CODE_CHARS.random() }.joinToString("")
-            val existing = firestore.collection("trips")
-                .whereEqualTo("joinCode", code).get().await()
-            if (existing.isEmpty) return code
+            val code = randomJoinCode()
+            if (!joinCodesRef.document(code).get().await().exists()) return code
         }
-        // Extremely unlikely to fail — return a fallback (still random)
-        return (1..6).map { JOIN_CODE_CHARS.random() }.joinToString("")
+        // Practically unreachable. If the code is taken after all, the rules reject the batch
+        // rather than overwrite another trip's record.
+        return randomJoinCode()
     }
+
+    private fun randomJoinCode(): String =
+        (1..JOIN_CODE_LENGTH).map { JOIN_CODE_CHARS.random() }.joinToString("")
+
+    private fun memberDoc(uid: String, nickname: String, avatarId: String, role: String) = mapOf(
+        "userId" to uid,
+        "nickname" to nickname,
+        "avatarId" to avatarId,
+        "role" to role,
+        "joinedAt" to FieldValue.serverTimestamp()
+    )
 
     // ── Document mappers ──────────────────────────────────────────────────────
 
-    private fun com.google.firebase.firestore.DocumentSnapshot.toTrip(): Trip? {
+    private fun DocumentSnapshot.toTrip(): Trip? {
         return try {
             val visibilityStr = getString("visibility") ?: "open"
             val visibility = if (visibilityStr == "locked") TripVisibility.LOCKED else TripVisibility.OPEN
@@ -258,7 +365,7 @@ class FirebaseTripRepository(
         } catch (e: Exception) { null }
     }
 
-    private fun com.google.firebase.firestore.DocumentSnapshot.toMember(): Member? {
+    private fun DocumentSnapshot.toMember(): Member? {
         return try {
             Member(
                 userId = getString("userId") ?: return null,

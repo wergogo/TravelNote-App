@@ -116,6 +116,8 @@ class FirebaseDayRepository(
         )
         if (draft.eventId == null) {
             data["createdAt"] = FieldValue.serverTimestamp()
+            // Who actually added the entry; the rules require it on create and keep it fixed.
+            data["createdBy"] = auth.currentUser?.uid
         }
         ref.set(data, SetOptions.merge()).await()
         Result.success(Unit)
@@ -154,6 +156,8 @@ class FirebaseDayRepository(
         if (draft.lng != null) data["lng"] = draft.lng
         if (draft.expenseId == null) {
             data["createdAt"] = FieldValue.serverTimestamp()
+            // Who actually added the entry; the payer is stored separately in authorId.
+            data["createdBy"] = auth.currentUser?.uid
         }
         ref.set(data, SetOptions.merge()).await()
         Result.success(Unit)
@@ -176,7 +180,8 @@ class FirebaseDayRepository(
                 "authorId" to author.first,
                 "authorNickname" to author.second,
                 "authorAvatarId" to author.third,
-                "createdAt" to FieldValue.serverTimestamp()
+                "createdAt" to FieldValue.serverTimestamp(),
+                "createdBy" to auth.currentUser?.uid
             )
         ).await()
         Result.success(Unit)

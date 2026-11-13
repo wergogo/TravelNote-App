@@ -5,10 +5,16 @@ import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.FirebaseFirestore
 import com.wergogo.travelnote.data.model.UserProfile
 import com.wergogo.travelnote.data.repository.ProfileRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
+
+// The security rules look up the trip of every document a batch writes, and one batch may look up
+// at most 20 documents, so profile changes are committed for at most this many trips at a time.
+private const val MAX_TRIPS_PER_BATCH = 10
+private const val MAX_WRITES_PER_BATCH = 500
 
 class FirebaseProfileRepository(
     private val auth: FirebaseAuth,
@@ -67,8 +73,8 @@ class FirebaseProfileRepository(
             val memberFields = mapOf<String, Any>("nickname" to nickname, "avatarId" to avatarId)
             val authorFields = mapOf<String, Any>("authorNickname" to nickname, "authorAvatarId" to avatarId)
 
-            // Collect all document references that need updating
-            val updates = mutableListOf<Pair<DocumentReference, Map<String, Any>>>()
+            // Collect the documents that need updating, grouped by trip
+            val updatesByTrip = mutableListOf<List<Pair<DocumentReference, Map<String, Any>>>>()
 
             // 1. Find all trips this user belongs to
             val tripsSnap = firestore.collection("trips")
@@ -76,6 +82,9 @@ class FirebaseProfileRepository(
                 .get().await()
 
             for (tripDoc in tripsSnap.documents) {
+                val updates = mutableListOf<Pair<DocumentReference, Map<String, Any>>>()
+                updatesByTrip.add(updates)
+
                 // Update member doc
                 val memberRef = tripDoc.reference.collection("members").document(uid)
                 updates.add(memberRef to memberFields)
@@ -108,14 +117,18 @@ class FirebaseProfileRepository(
                 }
             }
 
-            // Batch commit (Firestore limit: 500 ops per batch)
-            updates.chunked(500).forEach { chunk ->
-                val batch = firestore.batch()
-                chunk.forEach { (ref, data) -> batch.update(ref, data) }
-                batch.commit().await()
+            // Batch commit: at most MAX_TRIPS_PER_BATCH trips and MAX_WRITES_PER_BATCH writes per batch
+            updatesByTrip.chunked(MAX_TRIPS_PER_BATCH).forEach { tripGroup ->
+                tripGroup.flatten().chunked(MAX_WRITES_PER_BATCH).forEach { chunk ->
+                    val batch = firestore.batch()
+                    chunk.forEach { (ref, data) -> batch.update(ref, data) }
+                    batch.commit().await()
+                }
             }
 
             Result.success(Unit)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.failure(e)
         }

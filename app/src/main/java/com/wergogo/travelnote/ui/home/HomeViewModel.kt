@@ -19,6 +19,8 @@ class HomeViewModel(
     val isLoading = MutableStateFlow(true)
 
     init {
+        // Backfill join-code records for trips created before 1.0.2 (no-op after the first run).
+        viewModelScope.launch { tripRepo.ensureJoinCodes() }
         viewModelScope.launch {
             tripRepo.observeMyTrips().collect { list ->
                 _trips.value = list

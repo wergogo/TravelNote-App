@@ -66,7 +66,32 @@ trips/{tripId}
     ├── events/{eventId}
     ├── expenses/{expenseId}
     └── notes/{noteId}
+joinCodes/{CODE}                # code → tripId lookup used to join a trip
 ```
+
+## Security rules
+
+Every Android app ships its Firebase API key, so the
+[Firestore security rules](firebase/firestore.rules) are what protects the data:
+
+- A trip and everything in it is visible only to its members.
+- Profiles are private to their owner.
+- Only the owner can change a trip's settings or delete it.
+- A non-member can add only themselves, and only to an open trip they have the code for.
+- Entries record who created them, and that can't be forged.
+
+The rules are covered by emulator tests that replay each of the app's reads and writes, plus a
+list of attacks that must be refused:
+
+```bash
+cd firebase
+npm install
+npm test      # starts the Firestore emulator (needs Java 21+) and runs the rules and migration tests
+```
+
+Projects with data from before 1.0.2 should run the one-off migration in
+[`firebase/scripts/migrate-1.0.2.mjs`](firebase/scripts/migrate-1.0.2.mjs) before publishing the
+rules. The script's header shows how to run it.
 
 ## Getting started
 
@@ -79,15 +104,22 @@ Firebase project.
    its `google-services.json` into `app/`. The file is gitignored; the build
    fails without it.
 3. Enable **Authentication → Email/Password** and create a **Cloud Firestore**
-   database. Add security rules that allow access only to signed-in users.
+   database. Publish the rules in `firebase/firestore.rules` (Firestore →
+   Rules).
 4. Open the project in Android Studio and run it, or from the command line:
 
    ```bash
    ./gradlew installDebug
+   ./gradlew testDebugUnitTest   # ViewModel unit tests
    ```
 
 ## Status
 
 Version 1.0 was built as a university mobile-development course project. It is
-now being developed further as a personal project, with work on test coverage,
-Firestore security rules and new features.
+now being developed further as a personal project.
+
+Version 1.0.2 adds:
+- membership-based Firestore rules with emulator tests;
+- join-code lookups with atomic batched writes;
+- ViewModel unit tests;
+- R8 code and resource shrinking, which takes the release APK from ~60 MB to under 10 MB.

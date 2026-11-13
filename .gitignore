@@ -1,21 +1,59 @@
-*.iml
-.gradle
-.idea
-.kotlin
-.claude
-/docs
-.md
-/local.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
-.DS_Store
-/build
+# ── Build output ──────────────────────────────────────────────
+.gradle/
+.kotlin/
+build/
 /captures
-/app/release
-.externalNativeBuild
-.cxx
+.externalNativeBuild/
+.cxx/
+/app/release/
+/app/debug/
+*.apk
+*.aab
+*.ap_
+*.dex
+
+# ── Local machine config ──────────────────────────────────────
 local.properties
+
+# ── IDE ───────────────────────────────────────────────────────
+.idea/
+*.iml
+.vscode/
+.fleet/
+
+# ── Secrets & signing — never commit ─────────────────────────
+# Firebase config: each developer supplies their own (see README)
+google-services.json
+*.jks
+*.keystore
+keystore.properties
+secrets.properties
+.env
+.env.*
+
+# ── AI assistant / agent files — kept local ──────────────────
+.claude/
+CLAUDE.md
+CLAUDE.local.md
+AGENTS.md
+GEMINI.md
+.gemini/
+.codex/
+.cursor/
+.cursorrules
+.windsurf/
+.windsurfrules
+.aider*
+.continue/
+.superpowers/
+.github/copilot-instructions.md
+
+# ── Personal notes & docs — kept local ───────────────────────
+/docs/
+
+# ── OS / misc ────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+*.log
+hs_err_pid*

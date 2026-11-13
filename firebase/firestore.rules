@@ -1,0 +1,209 @@
+rules_version = '2';
+
+// TravelNote: Cloud Firestore security rules.
+//
+// Publish: Firebase console → Firestore Database → Rules → paste this file → Publish.
+// Tests:   firebase/test/firestore.rules.test.js (run `npm test` in firebase/).
+//
+// Model: a trip and everything under it is visible only to its members. Profiles are private.
+// Joining works through joinCodes/{CODE}, which reveals a trip id only to someone who already
+// knows the code. Only the owner changes trip settings; members may leave; a non-member may add
+// only themselves, and only to an open trip.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helpers ────────────────────────────────────────────────────────────
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function me() {
+      return request.auth.uid;
+    }
+
+    function tripPath(tripId) {
+      return /databases/$(database)/documents/trips/$(tripId);
+    }
+
+    // Membership as stored before this request.
+    function isMember(tripId) {
+      return signedIn() && me() in get(tripPath(tripId)).data.memberIds;
+    }
+
+    // Membership once this request (or the whole batch) is applied, used while joining.
+    function isMemberAfter(tripId) {
+      return signedIn() && me() in getAfter(tripPath(tripId)).data.memberIds;
+    }
+
+    function isOwnerOf(tripId) {
+      return signedIn() && get(tripPath(tripId)).data.ownerId == me();
+    }
+
+    function onlyChanged(keys) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys);
+    }
+
+    // ── Profiles: private to their owner ────────────────────────────────────
+
+    match /users/{userId} {
+      allow read, write: if signedIn() && me() == userId;
+    }
+
+    // ── Join codes: look up a code you already know; codes can't be listed ──
+
+    match /joinCodes/{code} {
+      allow get: if signedIn();
+      allow list: if false;
+
+      // Created with a trip, on regenerate, or as a backfill for trips made before 1.0.2.
+      // The record must match the trip's current code.
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['tripId'])
+        && request.resource.data.tripId is string
+        && isMemberAfter(request.resource.data.tripId)
+        && getAfter(tripPath(request.resource.data.tripId)).data.joinCode == code;
+
+      allow update: if false;
+
+      // Removed by the owner when the code is regenerated or the trip is deleted.
+      allow delete: if signedIn() && (resource == null || isOwnerOf(resource.data.tripId));
+    }
+
+    // ── Tombstones: a deleted trip's id can never be created again ────────
+    // Firestore keeps a deleted trip's sub-collections, so re-creating the same id would expose them.
+
+    match /deletedTrips/{tripId} {
+      allow create: if signedIn()
+        && isOwnerOf(tripId)
+        && !existsAfter(tripPath(tripId))
+        && request.resource.data.keys().hasOnly(['deletedBy', 'deletedAt'])
+        && request.resource.data.deletedBy == me();
+      allow read, update, delete: if false;
+    }
+
+    // ── Trips ──────────────────────────────────────────────────────────────
+
+    match /trips/{tripId} {
+
+      function validTrip(data) {
+        return data.ownerId is string
+          && data.memberIds is list
+          && data.get('visibility', 'open') in ['open', 'locked']
+          && data.joinCode is string
+          && data.joinCode.size() == 6;
+      }
+
+      // The owner may change settings and the join code, but not ownership or membership.
+      function ownerEdits() {
+        return resource.data.ownerId == me()
+          && request.resource.data.ownerId == resource.data.ownerId
+          && request.resource.data.memberIds == resource.data.memberIds
+          && validTrip(request.resource.data);
+      }
+
+      // A member (other than the owner) may remove exactly themselves.
+      function memberLeaves() {
+        return me() in resource.data.memberIds
+          && me() != resource.data.ownerId
+          && onlyChanged(['memberIds'])
+          && request.resource.data.memberIds == resource.data.memberIds.removeAll([me()]);
+      }
+
+      // A non-member may add exactly themselves to an open trip, changing nothing else, and only
+      // with the trip's current code (their new member record, written in the same batch, carries
+      // it), so a regenerated code locks out anyone holding an old one.
+      function selfJoins() {
+        return !(me() in resource.data.memberIds)
+          && resource.data.get('visibility', 'open') == 'open'
+          && onlyChanged(['memberIds'])
+          && request.resource.data.memberIds.size() == resource.data.memberIds.size() + 1
+          && request.resource.data.memberIds.hasAll(resource.data.memberIds)
+          && me() in request.resource.data.memberIds
+          && getAfter(/databases/$(database)/documents/trips/$(tripId)/members/$(me()))
+               .data.get('joinCode', null) == resource.data.joinCode;
+      }
+
+      // Reading a trip that doesn't exist is allowed so the app can say "not found".
+      allow get: if signedIn() && (resource == null || me() in resource.data.memberIds);
+      allow list: if signedIn() && me() in resource.data.memberIds;
+
+      allow create: if signedIn()
+        && !exists(/databases/$(database)/documents/deletedTrips/$(tripId))
+        && request.resource.data.ownerId == me()
+        && request.resource.data.memberIds == [me()]
+        && validTrip(request.resource.data);
+
+      allow update: if signedIn() && (ownerEdits() || memberLeaves() || selfJoins());
+
+      // Only together with its tombstone (see deletedTrips), so the id can't be re-created.
+      allow delete: if signedIn()
+        && resource.data.ownerId == me()
+        && existsAfter(/databases/$(database)/documents/deletedTrips/$(tripId));
+
+      // ── Member records (nickname/avatar copies for quick display) ─────────
+
+      match /members/{memberId} {
+        allow read: if isMember(tripId);
+
+        allow create: if signedIn()
+          && memberId == me()
+          && isMemberAfter(tripId)
+          && request.resource.data.userId == me()
+          && (request.resource.data.role == 'member'
+              || (request.resource.data.role == 'owner'
+                  && getAfter(tripPath(tripId)).data.ownerId == me()));
+
+        allow update: if signedIn()
+          && memberId == me()
+          && isMemberAfter(tripId)
+          && request.resource.data.userId == me()
+          && request.resource.data.role == resource.data.role;
+
+        // Your own record (also in the batch that removes you from the trip), or any record while
+        // the owner deletes the whole trip in the same batch.
+        allow delete: if signedIn()
+          && (memberId == me() || (isOwnerOf(tripId) && !existsAfter(tripPath(tripId))));
+      }
+
+      // ── Days and their entries: shared by all members ─────────────────────
+
+      match /days/{dateKey} {
+        allow read, write: if isMember(tripId);
+
+        match /{kind}/{itemId} {
+
+          function knownKind() {
+            return kind in ['events', 'expenses', 'notes'];
+          }
+
+          // Events and expenses may be paid by any member; a note's author is always you.
+          function authorAllowed() {
+            return kind == 'notes'
+              ? request.resource.data.authorId == me()
+              : request.resource.data.authorId in get(tripPath(tripId)).data.memberIds;
+          }
+
+          allow read, delete: if knownKind() && isMember(tripId);
+
+          // createdBy records who actually added the entry.
+          allow create: if knownKind()
+            && isMember(tripId)
+            && request.resource.data.createdBy == me()
+            && authorAllowed();
+
+          // Any member may edit; createdBy never changes (entries from before 1.0.2 have none).
+          // A note's author is fixed; an event's or expense's payer may change to another member.
+          allow update: if knownKind()
+            && isMember(tripId)
+            && request.resource.data.get('createdBy', null) == resource.data.get('createdBy', null)
+            && (kind == 'notes'
+                ? request.resource.data.get('authorId', null) == resource.data.get('authorId', null)
+                : (!('authorId' in request.resource.data.diff(resource.data).affectedKeys())
+                   || authorAllowed()));
+        }
+      }
+    }
+  }
+}

@@ -11,6 +11,8 @@ build/
 *.aab
 *.ap_
 *.dex
+node_modules/
+.firebase/
 
 # ── Local machine config ──────────────────────────────────────
 local.properties
@@ -24,6 +26,9 @@ local.properties
 # ── Secrets & signing — never commit ─────────────────────────
 # Firebase config: each developer supplies their own (see README)
 google-services.json
+# Firebase Admin service-account keys (used by firebase/scripts/migrate-1.0.2.mjs; keep them outside the repo)
+*firebase-adminsdk*.json
+service-account*.json
 *.jks
 *.keystore
 keystore.properties

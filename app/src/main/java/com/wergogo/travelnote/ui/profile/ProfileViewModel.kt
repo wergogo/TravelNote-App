@@ -30,6 +30,9 @@ class ProfileViewModel(
 
     private var profileJob: Job? = null
 
+    /** Nickname last received from the repository; a field that differs from it holds unsaved edits. */
+    private var syncedNickname = ""
+
     init {
         viewModelScope.launch {
             authRepo.authState().collect { isLoggedIn ->
@@ -41,7 +44,10 @@ class ProfileViewModel(
                         try {
                             profileRepo.observeProfile(uid).collect { profile ->
                                 _profile.value = profile
-                                editNickname = profile?.nickname ?: ""
+                                val incoming = profile?.nickname ?: ""
+                                // Follow the stored name only while the user isn't editing it.
+                                if (editNickname == syncedNickname) editNickname = incoming
+                                syncedNickname = incoming
                             }
                         } catch (e: CancellationException) {
                             throw e
@@ -57,16 +63,20 @@ class ProfileViewModel(
     }
 
     suspend fun saveNickname(): Boolean {
+        val nickname = editNickname.trim()
+        if (nickname.isEmpty()) {
+            errorMessage = "Display name can't be empty"
+            return false
+        }
         isLoading = true
         errorMessage = null
-        val result = profileRepo.updateNickname(editNickname.trim())
+        val result = profileRepo.updateNickname(nickname)
         isLoading = false
         if (result.isFailure) {
             errorMessage = result.exceptionOrNull()?.message ?: "Failed to save"
             return false
         }
-        // Propagate new nickname to all member docs, events, expenses, notes
-        profileRepo.propagateProfileUpdate()
+        propagateInBackground()
         successMessage = "Display name updated"
         return true
     }
@@ -77,10 +87,22 @@ class ProfileViewModel(
             errorMessage = result.exceptionOrNull()?.message ?: "Failed to update avatar"
             return false
         }
-        // Propagate new avatar to all member docs, events, expenses, notes
-        profileRepo.propagateProfileUpdate()
+        propagateInBackground()
         successMessage = "Profile photo updated"
         return true
+    }
+
+    /**
+     * Copies the new name/avatar onto member records and older entries without making the user
+     * wait (the repository finishes the work even if this screen closes).
+     */
+    private fun propagateInBackground() {
+        viewModelScope.launch {
+            profileRepo.propagateProfileUpdate().onFailure {
+                errorMessage = "Saved, but some older entries still show your previous name or photo. " +
+                    "Save again to retry."
+            }
+        }
     }
 
     fun logout() {

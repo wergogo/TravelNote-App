@@ -122,4 +122,9 @@ Version 1.0.2 adds:
 - membership-based Firestore rules with emulator tests;
 - join-code lookups with atomic batched writes;
 - ViewModel unit tests;
-- R8 code and resource shrinking, which takes the release APK from ~60 MB to under 10 MB.
+- R8 code and resource shrinking, which takes the release APK from ~60 MB to under 10 MB;
+- bug fixes:
+  - days list events in time order;
+  - amounts like "12,50" or "1,500" parse the same in any locale;
+  - location works on Android 12+;
+  - profile changes reach older entries.

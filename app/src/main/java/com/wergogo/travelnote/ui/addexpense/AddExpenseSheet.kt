@@ -1,6 +1,5 @@
 package com.wergogo.travelnote.ui.addexpense
 
-import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -21,6 +20,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.wergogo.travelnote.util.LocationHelper.LOCATION_PERMISSIONS
 import com.wergogo.travelnote.TravelNoteApplication
 import com.wergogo.travelnote.data.model.ExpenseCategory
 import com.wergogo.travelnote.data.model.Member
@@ -51,13 +51,15 @@ fun AddExpenseSheet(
     val coroutineScope = rememberCoroutineScope()
     val members by vm.members.collectAsState()
 
+    // Android 12+ ignores a request for precise location alone, so ask for approximate and precise
+    // together; either grant is enough to tag the expense.
     val locationPermissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission()
-    ) { isGranted ->
-        if (isGranted) {
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { grants ->
+        if (grants.values.any { it }) {
             coroutineScope.launch { vm.fetchLocation(context) }
         } else {
-            vm.errorMessage = "Location permission denied"
+            vm.errorMessage = "Location permission denied. You can allow it in the app's settings."
         }
     }
 
@@ -77,13 +79,13 @@ fun AddExpenseSheet(
         errorMessage = vm.errorMessage,
         isLoading = vm.isLoading,
         onLocationClick = {
-            if (ContextCompat.checkSelfPermission(
-                    context, Manifest.permission.ACCESS_FINE_LOCATION
-                ) == PackageManager.PERMISSION_GRANTED
-            ) {
+            val granted = LOCATION_PERMISSIONS.any {
+                ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
+            }
+            if (granted) {
                 coroutineScope.launch { vm.fetchLocation(context) }
             } else {
-                locationPermissionLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
+                locationPermissionLauncher.launch(LOCATION_PERMISSIONS)
             }
         },
         onSave = { coroutineScope.launch { if (vm.save()) onSaved() } },

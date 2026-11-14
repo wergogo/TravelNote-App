@@ -32,6 +32,9 @@ object DefaultImages {
     /** All avatar keys for display in AvatarPicker. */
     val avatarKeys: List<String> = avatars.keys.toList()
 
+    /** A random bundled avatar for a new account (the keys are fixed text, so no locale issues). */
+    fun randomAvatarId(): String = avatarKeys.random()
+
     /** All cover keys for display in CoverPicker. */
     val coverKeys: List<String> = covers.keys.toList()
 }

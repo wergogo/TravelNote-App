@@ -5,6 +5,8 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.wergogo.travelnote.data.repository.AuthRepository
+import com.wergogo.travelnote.util.DefaultImages
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -33,8 +35,7 @@ class FirebaseAuthRepository(
     ): Result<Unit> = try {
         auth.createUserWithEmailAndPassword(email, password).await()
         val uid = auth.currentUser!!.uid
-        val defaultAvatars = (1..10).map { "avatar_%02d".format(it) }
-        val defaultAvatar = defaultAvatars.random()
+        val defaultAvatar = DefaultImages.randomAvatarId()
         firestore.collection("users").document(uid).set(
             mapOf(
                 "id" to uid,
@@ -45,6 +46,8 @@ class FirebaseAuthRepository(
             )
         ).await()
         Result.success(Unit)
+    } catch (e: CancellationException) {
+        throw e
     } catch (e: Exception) {
         Result.failure(e)
     }
@@ -52,6 +55,8 @@ class FirebaseAuthRepository(
     override suspend fun login(email: String, password: String): Result<Unit> = try {
         auth.signInWithEmailAndPassword(email, password).await()
         Result.success(Unit)
+    } catch (e: CancellationException) {
+        throw e
     } catch (e: Exception) {
         Result.failure(e)
     }
@@ -66,6 +71,8 @@ class FirebaseAuthRepository(
         user.reauthenticate(credential).await()
         user.updatePassword(newPassword).await()
         Result.success(Unit)
+    } catch (e: CancellationException) {
+        throw e
     } catch (e: Exception) {
         Result.failure(e)
     }

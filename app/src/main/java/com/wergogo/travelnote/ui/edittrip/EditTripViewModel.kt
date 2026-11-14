@@ -8,6 +8,9 @@ import androidx.lifecycle.viewModelScope
 import com.wergogo.travelnote.data.model.TripDraft
 import com.wergogo.travelnote.data.model.TripVisibility
 import com.wergogo.travelnote.data.repository.TripRepository
+import com.wergogo.travelnote.util.amountInputText
+import com.wergogo.travelnote.util.parseAmount
+import com.wergogo.travelnote.util.tripDatesError
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -33,7 +36,7 @@ class EditTripViewModel(
                 destination = trip.destination
                 startDate = trip.startDate
                 endDate = trip.endDate
-                totalBudget = trip.totalBudget.toString()
+                totalBudget = amountInputText(trip.totalBudget)
                 currency = trip.currency
                 visibility = trip.visibility
                 coverId = trip.coverId
@@ -43,8 +46,9 @@ class EditTripViewModel(
 
     suspend fun saveChanges(): Boolean {
         if (name.isBlank()) { errorMessage = "Name is required"; return false }
-        if (startDate.isBlank() || endDate.isBlank()) { errorMessage = "Dates are required"; return false }
-        val budget = totalBudget.toDoubleOrNull() ?: 0.0
+        tripDatesError(startDate, endDate)?.let { errorMessage = it; return false }
+        val budget = if (totalBudget.isBlank()) 0.0 else parseAmount(totalBudget)
+            ?: run { errorMessage = "Enter a valid budget"; return false }
         isLoading = true
         errorMessage = null
         val result = tripRepo.updateTrip(

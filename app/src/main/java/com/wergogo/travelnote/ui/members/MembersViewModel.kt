@@ -7,7 +7,7 @@ import com.wergogo.travelnote.data.model.Trip
 import com.wergogo.travelnote.data.repository.AuthRepository
 import com.wergogo.travelnote.data.repository.DayRepository
 import com.wergogo.travelnote.data.repository.TripRepository
-import com.wergogo.travelnote.ui.tripoverview.generateDateKeys
+import com.wergogo.travelnote.util.generateDateKeys
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

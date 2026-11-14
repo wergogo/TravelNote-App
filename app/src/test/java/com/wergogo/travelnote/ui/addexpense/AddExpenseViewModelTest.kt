@@ -2,7 +2,6 @@
 
 package com.wergogo.travelnote.ui.addexpense
 
-import com.wergogo.travelnote.B7_RULE
 import com.wergogo.travelnote.DefaultLocaleRule
 import com.wergogo.travelnote.MainDispatcherRule
 import com.wergogo.travelnote.data.model.Expense
@@ -21,7 +20,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
-import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import java.util.Locale
@@ -304,7 +302,6 @@ class AddExpenseViewModelTest {
 
     // ---- known bugs ----
 
-    @Ignore(B7_RULE)
     @Test
     fun `comma followed by one or two digits is the decimal separator`() = runTest {
         val vm = addViewModel()
@@ -317,7 +314,6 @@ class AddExpenseViewModelTest {
         }
     }
 
-    @Ignore(B7_RULE)
     @Test
     fun `other commas are thousands separators`() = runTest {
         val vm = addViewModel()

@@ -2,7 +2,6 @@
 
 package com.wergogo.travelnote.ui.createtrip
 
-import com.wergogo.travelnote.B7_RULE
 import com.wergogo.travelnote.DefaultLocaleRule
 import com.wergogo.travelnote.MainDispatcherRule
 import com.wergogo.travelnote.data.model.TripDraft
@@ -17,7 +16,6 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
-import org.junit.Ignore
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -190,7 +188,6 @@ class CreateTripViewModelTest {
         assertFalse(vm.isLoading)
     }
 
-    @Ignore(B7_RULE)
     @Test
     fun `comma followed by one or two digits is the decimal separator`() = runTest {
         for ((input, expected) in listOf("12,50" to 12.5, "7,5" to 7.5)) {
@@ -203,7 +200,6 @@ class CreateTripViewModelTest {
         }
     }
 
-    @Ignore(B7_RULE)
     @Test
     fun `other commas are thousands separators`() = runTest {
         for ((input, expected) in listOf("1,500" to 1500.0, "1,500.25" to 1500.25)) {
@@ -216,7 +212,6 @@ class CreateTripViewModelTest {
         }
     }
 
-    @Ignore(B7_RULE)
     @Test
     fun `parsing rule does not depend on the default locale`() = runTest {
         Locale.setDefault(Locale.GERMANY) // restored by localeRule
@@ -230,7 +225,6 @@ class CreateTripViewModelTest {
         }
     }
 
-    @Ignore("Bug B7: an unparseable budget is silently saved as 0.0 instead of showing a validation error")
     @Test
     fun `unparseable budget shows validation error and does not save zero`() = runTest {
         fillValidForm()

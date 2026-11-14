@@ -2,7 +2,6 @@
 
 package com.wergogo.travelnote.ui.edittrip
 
-import com.wergogo.travelnote.B7_RULE
 import com.wergogo.travelnote.DefaultLocaleRule
 import com.wergogo.travelnote.MainDispatcherRule
 import com.wergogo.travelnote.data.model.Trip
@@ -19,7 +18,6 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
-import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import java.util.Locale
@@ -55,7 +53,7 @@ class EditTripViewModelTest {
         assertEquals("Reykjavik", vm.destination)
         assertEquals("2025-06-01", vm.startDate)
         assertEquals("2025-06-08", vm.endDate)
-        assertEquals("2000.0", vm.totalBudget)
+        assertEquals("2000", vm.totalBudget)
         assertEquals("EUR", vm.currency)
         assertEquals(TripVisibility.LOCKED, vm.visibility)
         assertEquals("cover_beach", vm.coverId)
@@ -163,7 +161,6 @@ class EditTripViewModelTest {
         assertFalse(vm.isLoading)
     }
 
-    @Ignore("Bug B8: EditTripViewModel accepts an end date before the start date (CreateTripViewModel rejects it)")
     @Test
     fun `end date before start date shows validation error and does not call repository`() = runTest {
         val vm = viewModel()
@@ -176,7 +173,6 @@ class EditTripViewModelTest {
         assertEquals(0, trips.updateCalls)
     }
 
-    @Ignore(B7_RULE)
     @Test
     fun `comma followed by one or two digits is the decimal separator`() = runTest {
         val vm = viewModel()
@@ -190,7 +186,6 @@ class EditTripViewModelTest {
         }
     }
 
-    @Ignore(B7_RULE)
     @Test
     fun `other commas are thousands separators`() = runTest {
         val vm = viewModel()
@@ -204,7 +199,6 @@ class EditTripViewModelTest {
         }
     }
 
-    @Ignore("Bug B7: an unparseable budget is silently saved as 0.0 instead of showing a validation error")
     @Test
     fun `unparseable budget shows validation error and does not save zero`() = runTest {
         val vm = viewModel()

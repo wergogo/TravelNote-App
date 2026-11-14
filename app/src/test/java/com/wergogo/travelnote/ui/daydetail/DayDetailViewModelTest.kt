@@ -52,6 +52,23 @@ class DayDetailViewModelTest {
     }
 
     @Test
+    fun `events are listed by time of day, not in the order they were added`() = runTest {
+        days.setEvents(
+            "t1", date,
+            listOf(
+                Event(id = "evening", time = "18:11", createdAt = 1),
+                Event(id = "night", time = "21:22", createdAt = 2),
+                Event(id = "morning", time = "9:03", createdAt = 3)   // saved before times were padded
+            )
+        )
+
+        val vm = viewModel()
+        advanceUntilIdle()
+
+        assertEquals(listOf("morning", "evening", "night"), vm.events.value.map { it.id })
+    }
+
+    @Test
     fun `trip stays null when it does not exist`() = runTest {
         val vm = viewModel()
         advanceUntilIdle()

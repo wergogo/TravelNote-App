@@ -2,7 +2,6 @@
 
 package com.wergogo.travelnote.ui.addevent
 
-import com.wergogo.travelnote.B7_RULE
 import com.wergogo.travelnote.DefaultLocaleRule
 import com.wergogo.travelnote.MainDispatcherRule
 import com.wergogo.travelnote.data.model.Event
@@ -22,7 +21,6 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
-import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import java.util.Locale
@@ -338,7 +336,7 @@ class AddEventViewModelTest {
         assertTrue(vm.isEditMode)
         assertEquals(EventType.FLIGHT, vm.eventType)
         assertEquals("07:45", vm.time)
-        assertEquals("320.0", vm.cost)
+        assertEquals("320", vm.cost)
         assertEquals("BA 12", vm.flightNumber)
         assertEquals("LHR", vm.depAirport)
         assertEquals("JFK", vm.arrAirport)
@@ -390,7 +388,6 @@ class AddEventViewModelTest {
 
     // ---- known bugs ----
 
-    @Ignore(B7_RULE)
     @Test
     fun `comma followed by one or two digits is the decimal separator`() = runTest {
         val vm = addViewModel().apply { fillValidActivity() }
@@ -403,7 +400,6 @@ class AddEventViewModelTest {
         }
     }
 
-    @Ignore(B7_RULE)
     @Test
     fun `other commas are thousands separators`() = runTest {
         val vm = addViewModel().apply { fillValidActivity() }
@@ -416,7 +412,6 @@ class AddEventViewModelTest {
         }
     }
 
-    @Ignore("Bug B14: time \"9:30\" is accepted unnormalised and sorts after \"10:00\"; fix = normalise the saved time to \"09:30\" in AddEventViewModel.save()")
     @Test
     fun `single digit hour is normalised to zero padded HH colon mm`() = runTest {
         val vm = addViewModel().apply { fillValidActivity(); time = "9:30" }

@@ -11,6 +11,8 @@ import com.wergogo.travelnote.data.model.Member
 import com.wergogo.travelnote.data.repository.AuthRepository
 import com.wergogo.travelnote.data.repository.DayRepository
 import com.wergogo.travelnote.data.repository.TripRepository
+import com.wergogo.travelnote.util.amountInputText
+import com.wergogo.travelnote.util.parseAmount
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -65,7 +67,7 @@ class AddExpenseViewModel(
                     .find { it.id == editExpenseId }
                     ?.let { exp ->
                         category = exp.category
-                        amount = exp.amount.toString()
+                        amount = amountInputText(exp.amount)
                         description = exp.description
                         lat = exp.lat
                         lng = exp.lng
@@ -98,7 +100,7 @@ class AddExpenseViewModel(
     }
 
     suspend fun save(): Boolean {
-        val amt = amount.toDoubleOrNull()
+        val amt = parseAmount(amount)
         if (amt == null || amt <= 0) { errorMessage = "Enter a valid amount"; return false }
         isLoading = true
         errorMessage = null

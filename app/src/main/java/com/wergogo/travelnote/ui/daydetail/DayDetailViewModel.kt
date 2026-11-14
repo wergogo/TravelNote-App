@@ -9,6 +9,7 @@ import com.wergogo.travelnote.data.model.Note
 import com.wergogo.travelnote.data.model.Trip
 import com.wergogo.travelnote.data.repository.DayRepository
 import com.wergogo.travelnote.data.repository.TripRepository
+import com.wergogo.travelnote.util.EventChronology
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -39,7 +40,10 @@ class DayDetailViewModel(
     init {
         viewModelScope.launch { tripRepo.observeTrip(tripId).collect { _trip.value = it } }
         viewModelScope.launch { dayRepo.observeDay(tripId, dateKey).collect { _day.value = it } }
-        viewModelScope.launch { dayRepo.observeEvents(tripId, dateKey).collect { _events.value = it } }
+        // Firestore returns events in the order they were added; show them by time of day.
+        viewModelScope.launch {
+            dayRepo.observeEvents(tripId, dateKey).collect { _events.value = it.sortedWith(EventChronology) }
+        }
         viewModelScope.launch { dayRepo.observeExpenses(tripId, dateKey).collect { _expenses.value = it } }
         viewModelScope.launch { dayRepo.observeNotes(tripId, dateKey).collect { _notes.value = it } }
     }

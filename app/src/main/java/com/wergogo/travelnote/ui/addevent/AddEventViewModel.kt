@@ -11,6 +11,9 @@ import com.wergogo.travelnote.data.model.Member
 import com.wergogo.travelnote.data.repository.AuthRepository
 import com.wergogo.travelnote.data.repository.DayRepository
 import com.wergogo.travelnote.data.repository.TripRepository
+import com.wergogo.travelnote.util.amountInputText
+import com.wergogo.travelnote.util.normalizeTime
+import com.wergogo.travelnote.util.parseAmount
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -70,7 +73,7 @@ class AddEventViewModel(
                     ?.let { ev ->
                         eventType = ev.type
                         time = ev.time
-                        cost = ev.cost.toString()
+                        cost = amountInputText(ev.cost)
                         flightNumber = ev.flightNumber
                         depAirport = ev.depAirport
                         arrAirport = ev.arrAirport
@@ -104,7 +107,7 @@ class AddEventViewModel(
             errorMessage = "Invalid time — hours 0-23, minutes 0-59"
             return false
         }
-        if (cost.isNotBlank() && cost.toDoubleOrNull() == null) {
+        if (cost.isNotBlank() && parseAmount(cost) == null) {
             errorMessage = "Cost must be a valid number"
             return false
         }
@@ -123,8 +126,8 @@ class AddEventViewModel(
         val isSelf = selectedPayerId == authRepo.currentUserId
         val draft = EventDraft(
             type = eventType,
-            time = time.trim(),
-            cost = cost.toDoubleOrNull() ?: 0.0,
+            time = normalizeTime(time) ?: time.trim(),   // validated above; store as "HH:mm"
+            cost = parseAmount(cost) ?: 0.0,   // blank cost = free
             flightNumber = flightNumber.uppercase().trim(),
             depAirport = depAirport.uppercase().trim(),
             arrAirport = arrAirport.uppercase().trim(),

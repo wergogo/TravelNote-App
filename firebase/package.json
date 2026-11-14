@@ -4,8 +4,9 @@
   "type": "module",
   "description": "Cloud Firestore security rules for TravelNote, verified against the Firestore emulator",
   "scripts": {
-    "test": "firebase emulators:exec --only firestore --project demo-travelnote \"node --test --test-concurrency=1 test/firestore.rules.test.js test/migrate.test.js\"",
-    "migrate": "node scripts/migrate-1.0.2.mjs"
+    "test": "firebase emulators:exec --only firestore,auth --project demo-travelnote \"node --test --test-concurrency=1 test/firestore.rules.test.js test/migrate.test.js test/set-password.test.js\"",
+    "migrate": "node scripts/migrate-1.0.2.mjs",
+    "set-password": "node scripts/set-password.mjs"
   },
   "devDependencies": {
     "@firebase/rules-unit-testing": "^6.0.0",

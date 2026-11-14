@@ -16,7 +16,6 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
-import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 
@@ -236,7 +235,6 @@ class ProfileViewModelTest {
         assertEquals("Ann", vm.profile.value?.nickname)
     }
 
-    @Ignore("Bug B12: saveNickname accepts a blank nickname instead of showing a validation error")
     @Test
     fun `blank nickname shows validation error and does not call repository`() = runTest {
         val vm = loggedInViewModel()
@@ -251,7 +249,6 @@ class ProfileViewModelTest {
         assertEquals(0, profiles.propagateCalls)
     }
 
-    @Ignore("Bug B12: every profile emission overwrites the nickname the user is still editing")
     @Test
     fun `unsaved nickname edit survives a new profile emission`() = runTest {
         val vm = loggedInViewModel()
@@ -264,5 +261,36 @@ class ProfileViewModelTest {
 
         assertEquals("avatar_07", vm.profile.value?.avatarId)
         assertEquals("Draft name", vm.editNickname)
+    }
+
+    @Test
+    fun `saving the nickname does not wait for older entries to be updated`() = runTest {
+        val vm = loggedInViewModel()
+        advanceUntilIdle()
+        profiles.propagateGate = CompletableDeferred()   // propagation is still running…
+        vm.editNickname = "Annie"
+
+        val save = launch { vm.saveNickname() }
+        runCurrent()
+
+        assertTrue("save should finish while propagation is still running", save.isCompleted)
+        assertEquals("Display name updated", vm.successMessage)
+        assertEquals(1, profiles.propagateCalls)
+        profiles.propagateGate!!.complete(Unit)
+    }
+
+    @Test
+    fun `a failed update of older entries is reported but the new name is kept`() = runTest {
+        val vm = loggedInViewModel()
+        advanceUntilIdle()
+        profiles.propagateResult = Result.failure(Exception("offline"))
+        vm.editNickname = "Annie"
+
+        val ok = vm.saveNickname()
+        advanceUntilIdle()
+
+        assertTrue(ok)
+        assertEquals(listOf("Annie"), profiles.nicknameUpdates)
+        assertNotNull(vm.errorMessage)
     }
 }

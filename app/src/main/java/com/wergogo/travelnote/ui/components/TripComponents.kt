@@ -37,6 +37,7 @@ import com.wergogo.travelnote.data.model.TripVisibility
 import com.wergogo.travelnote.ui.theme.Success
 import com.wergogo.travelnote.ui.theme.Warning
 import com.wergogo.travelnote.util.DefaultImages
+import com.wergogo.travelnote.util.formatMoney
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
@@ -199,13 +200,13 @@ fun BudgetBar(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
-                text = "$currency %.2f spent / %.2f total".format(spent, total),
+                text = "${formatMoney(currency, spent)} spent / ${"%.2f".format(total)} total",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             val remaining = total - spent
             Text(
-                text = "$currency %.2f left".format(remaining.coerceAtLeast(0.0)),
+                text = "${formatMoney(currency, remaining.coerceAtLeast(0.0))} left",
                 style = MaterialTheme.typography.bodySmall,
                 color = if (isWarning) Warning else Success,
                 fontWeight = FontWeight.Medium

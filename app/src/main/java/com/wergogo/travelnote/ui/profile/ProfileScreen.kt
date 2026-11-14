@@ -13,9 +13,12 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.wergogo.travelnote.BuildConfig
+import com.wergogo.travelnote.R
 import com.wergogo.travelnote.TravelNoteApplication
 import com.wergogo.travelnote.ui.components.AppTopBar
 import com.wergogo.travelnote.ui.components.AvatarPicker
@@ -77,6 +80,7 @@ fun ProfileScreen(
         },
         onChangePassword = onChangePassword,
         onTripsClick = onTripsClick,
+        versionLabel = "${stringResource(R.string.app_name)} ${BuildConfig.VERSION_NAME}",
         snackbarHostState = snackbarHostState
     )
 }
@@ -93,6 +97,7 @@ internal fun ProfileContent(
     onChangePassword: () -> Unit,
     onLogout: () -> Unit,
     onTripsClick: () -> Unit,
+    versionLabel: String,
     snackbarHostState: SnackbarHostState = remember { SnackbarHostState() }
 ) {
     Scaffold(
@@ -108,7 +113,7 @@ internal fun ProfileContent(
     ) { innerPadding ->
         Column(
             modifier = Modifier
-                .fillMaxWidth()
+                .fillMaxSize()
                 .padding(innerPadding)
                 .padding(24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
@@ -176,6 +181,14 @@ internal fun ProfileContent(
                 text = "Sign Out",
                 onClick = onLogout
             )
+
+            // App version, pinned to the bottom of the screen
+            Spacer(modifier = Modifier.weight(1f))
+            Text(
+                text = versionLabel,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
@@ -194,7 +207,8 @@ private fun ProfileScreenPreview() {
             onSave = {},
             onChangePassword = {},
             onLogout = {},
-            onTripsClick = {}
+            onTripsClick = {},
+            versionLabel = "Travelnote 1.0.2"
         )
     }
 }
@@ -207,13 +221,14 @@ private fun ProfileScreenErrorPreview() {
             avatarId = "avatar_01",
             editNickname = "",
             onNicknameChange = {},
-            errorMessage = "Display name cannot be empty",
+            errorMessage = "Display name can't be empty",
             isLoading = false,
             onAvatarEdit = {},
             onSave = {},
             onChangePassword = {},
             onLogout = {},
-            onTripsClick = {}
+            onTripsClick = {},
+            versionLabel = "Travelnote 1.0.2"
         )
     }
 }

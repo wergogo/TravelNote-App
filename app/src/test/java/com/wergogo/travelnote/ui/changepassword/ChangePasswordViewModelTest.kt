@@ -77,7 +77,7 @@ class ChangePasswordViewModelTest {
     }
 
     @Test
-    fun `success passes both passwords, marks success and logs the user out`() = runTest {
+    fun `success passes both passwords and marks success but stays signed in until the screen is left`() = runTest {
         fill()
 
         val ok = vm.changePassword()
@@ -86,6 +86,16 @@ class ChangePasswordViewModelTest {
         assertTrue(vm.isSuccess)
         assertNull(vm.errorMessage)
         assertEquals("oldpass" to "newpass1", auth.lastChangePassword)
+        assertEquals(0, auth.logoutCalls)
+    }
+
+    @Test
+    fun `finishing after a successful change signs the user out`() = runTest {
+        fill()
+        vm.changePassword()
+
+        vm.finish()
+
         assertEquals(1, auth.logoutCalls)
     }
 

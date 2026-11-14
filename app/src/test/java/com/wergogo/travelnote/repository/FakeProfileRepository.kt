@@ -30,6 +30,10 @@ class FakeProfileRepository : ProfileRepository {
     val avatarUpdates = mutableListOf<String>()
     var propagateCalls = 0
         private set
+    var propagateResult: Result<Unit> = Result.success(Unit)
+
+    /** When set, [propagateProfileUpdate] waits for it, so tests can check that callers don't wait. */
+    var propagateGate: CompletableDeferred<Unit>? = null
 
     override fun observeProfile(userId: String): Flow<UserProfile?> {
         lastObservedUserId = userId
@@ -62,6 +66,7 @@ class FakeProfileRepository : ProfileRepository {
 
     override suspend fun propagateProfileUpdate(): Result<Unit> {
         propagateCalls++
-        return Result.success(Unit)
+        propagateGate?.await()
+        return propagateResult
     }
 }

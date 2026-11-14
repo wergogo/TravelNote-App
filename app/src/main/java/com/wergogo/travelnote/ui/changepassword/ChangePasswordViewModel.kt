@@ -46,8 +46,14 @@ class ChangePasswordViewModel(
             return false
         }
 
+        // Stay signed in while the success message shows; finish() signs out when the screen is left,
+        // so going back can never leave a signed-out user inside the app.
         isSuccess = true
-        authRepo.logout()
         return true
+    }
+
+    /** Called when leaving the screen after a successful change: sign out so the user signs in again. */
+    suspend fun finish() {
+        authRepo.logout()
     }
 }

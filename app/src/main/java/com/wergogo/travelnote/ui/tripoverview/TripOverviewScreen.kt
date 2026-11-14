@@ -55,6 +55,7 @@ import com.wergogo.travelnote.ui.components.MemberAvatarRow
 import com.wergogo.travelnote.ui.theme.Success
 import com.wergogo.travelnote.ui.theme.TravelnoteTheme
 import com.wergogo.travelnote.util.DefaultImages
+import com.wergogo.travelnote.util.generateDateKeys
 
 @Composable
 fun TripOverviewScreen(

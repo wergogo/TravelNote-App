@@ -1,5 +1,6 @@
 package com.wergogo.travelnote.ui.changepassword
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -53,12 +54,18 @@ fun ChangePasswordScreen(
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
+    // After a successful change: show the message, then sign out and go to sign-in.
     LaunchedEffect(vm.isSuccess) {
         if (vm.isSuccess) {
             snackbarHostState.showSnackbar("Password changed successfully. Please sign in with your new password.")
+            vm.finish()
             onPasswordChanged()
         }
     }
+
+    // Going back while that message shows just skips the wait, so the effect above still runs.
+    val skipSuccessMessage = { snackbarHostState.currentSnackbarData?.dismiss() }
+    BackHandler(enabled = vm.isSuccess) { skipSuccessMessage() }
 
     ChangePasswordContent(
         currentPassword = vm.currentPassword,
@@ -70,7 +77,7 @@ fun ChangePasswordScreen(
         errorMessage = vm.errorMessage,
         isLoading = vm.isLoading,
         onChangePassword = { coroutineScope.launch { vm.changePassword() } },
-        onBack = onBack,
+        onBack = { if (vm.isSuccess) skipSuccessMessage() else onBack() },
         snackbarHostState = snackbarHostState
     )
 }

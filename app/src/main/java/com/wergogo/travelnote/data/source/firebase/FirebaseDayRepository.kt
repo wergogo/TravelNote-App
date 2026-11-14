@@ -14,6 +14,7 @@ import com.wergogo.travelnote.data.model.ExpenseDraft
 import com.wergogo.travelnote.data.model.Note
 import com.wergogo.travelnote.data.model.NoteDraft
 import com.wergogo.travelnote.data.repository.DayRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -86,7 +87,7 @@ class FirebaseDayRepository(
         )
         dayRef(tripId, dateKey).set(data).await()
         Result.success(Unit)
-    } catch (e: Exception) { Result.failure(e) }
+    } catch (e: CancellationException) { throw e } catch (e: Exception) { Result.failure(e) }
 
     override suspend fun upsertEvent(
         tripId: String, dateKey: String, draft: EventDraft
@@ -121,14 +122,14 @@ class FirebaseDayRepository(
         }
         ref.set(data, SetOptions.merge()).await()
         Result.success(Unit)
-    } catch (e: Exception) { Result.failure(e) }
+    } catch (e: CancellationException) { throw e } catch (e: Exception) { Result.failure(e) }
 
     override suspend fun deleteEvent(
         tripId: String, dateKey: String, eventId: String
     ): Result<Unit> = try {
         dayRef(tripId, dateKey).collection("events").document(eventId).delete().await()
         Result.success(Unit)
-    } catch (e: Exception) { Result.failure(e) }
+    } catch (e: CancellationException) { throw e } catch (e: Exception) { Result.failure(e) }
 
     override suspend fun addExpense(
         tripId: String, dateKey: String, draft: ExpenseDraft
@@ -161,14 +162,14 @@ class FirebaseDayRepository(
         }
         ref.set(data, SetOptions.merge()).await()
         Result.success(Unit)
-    } catch (e: Exception) { Result.failure(e) }
+    } catch (e: CancellationException) { throw e } catch (e: Exception) { Result.failure(e) }
 
     override suspend fun deleteExpense(
         tripId: String, dateKey: String, expenseId: String
     ): Result<Unit> = try {
         dayRef(tripId, dateKey).collection("expenses").document(expenseId).delete().await()
         Result.success(Unit)
-    } catch (e: Exception) { Result.failure(e) }
+    } catch (e: CancellationException) { throw e } catch (e: Exception) { Result.failure(e) }
 
     override suspend fun addNote(
         tripId: String, dateKey: String, draft: NoteDraft
@@ -185,14 +186,14 @@ class FirebaseDayRepository(
             )
         ).await()
         Result.success(Unit)
-    } catch (e: Exception) { Result.failure(e) }
+    } catch (e: CancellationException) { throw e } catch (e: Exception) { Result.failure(e) }
 
     override suspend fun deleteNote(
         tripId: String, dateKey: String, noteId: String
     ): Result<Unit> = try {
         dayRef(tripId, dateKey).collection("notes").document(noteId).delete().await()
         Result.success(Unit)
-    } catch (e: Exception) { Result.failure(e) }
+    } catch (e: CancellationException) { throw e } catch (e: Exception) { Result.failure(e) }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 

@@ -26,6 +26,7 @@ import com.wergogo.travelnote.ui.theme.CategoryStay
 import com.wergogo.travelnote.ui.theme.CategoryTransport
 import com.wergogo.travelnote.ui.theme.Success
 import com.wergogo.travelnote.util.DefaultImages
+import com.wergogo.travelnote.util.formatMoney
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -102,7 +103,7 @@ fun AmountText(
     modifier: Modifier = Modifier
 ) {
     Text(
-        text = "$currency %.2f".format(amount),
+        text = formatMoney(currency, amount),
         style = MaterialTheme.typography.bodyMedium,
         color = Success,
         fontWeight = FontWeight.Medium,

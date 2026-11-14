@@ -12,11 +12,12 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import com.wergogo.travelnote.util.EventChronology
+import com.wergogo.travelnote.util.generateDateKeys
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import java.time.LocalDate
 
 data class DaySummary(
     val events: List<Event> = emptyList(),
@@ -68,7 +69,7 @@ class TripOverviewViewModel(
                             dayRepo.observeExpenses(tripId, dateKey)
                         ) { events, expenses ->
                             dateKey to DaySummary(
-                                events = events.sortedBy { it.time },
+                                events = events.sortedWith(EventChronology),
                                 totalExpense = expenses.sumOf { it.amount } + events.sumOf { it.cost }
                             )
                         }
@@ -89,15 +90,4 @@ class TripOverviewViewModel(
     suspend fun deleteTrip(): Result<Unit> = tripRepo.deleteTrip(tripId)
 
     suspend fun leaveTrip(): Result<Unit> = tripRepo.leaveTrip(tripId)
-}
-
-internal fun generateDateKeys(startDate: String, endDate: String): List<String> {
-    return try {
-        val start = LocalDate.parse(startDate)
-        val end = LocalDate.parse(endDate)
-        generateSequence(start) { it.plusDays(1) }
-            .takeWhile { !it.isAfter(end) }
-            .map { it.toString() }
-            .toList()
-    } catch (e: Exception) { emptyList() }
 }

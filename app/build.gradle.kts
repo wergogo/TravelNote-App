@@ -40,6 +40,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true   // BuildConfig.VERSION_NAME for the version label on Profile
     }
 }
 
